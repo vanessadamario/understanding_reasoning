@@ -1,0 +1,8 @@
+torch
+numpy
+scipy
+torchvision
+h5py
+tqdm
+Pillow
+termcolor
