@@ -1,0 +1,464 @@
+{
+  "question_token_to_idx": {
+    "<NULL>": 0,
+    "<START>": 1,
+    "<END>": 2,
+    "is": 3,
+    "there": 4,
+    "a": 5,
+    "green": 6,
+    "A": 7,
+    "B": 8,
+    "C": 9,
+    "D": 10,
+    "E": 11,
+    "F": 12,
+    "G": 13,
+    "H": 14,
+    "I": 15,
+    "J": 16,
+    "K": 17,
+    "L": 18,
+    "M": 19,
+    "N": 20,
+    "O": 21,
+    "P": 22,
+    "Q": 23,
+    "R": 24,
+    "S": 25,
+    "T": 26,
+    "U": 27,
+    "V": 28,
+    "W": 29,
+    "X": 30,
+    "Y": 31,
+    "Z": 32,
+    "1": 33,
+    "2": 34,
+    "3": 35,
+    "4": 36,
+    "5": 37,
+    "6": 38,
+    "7": 39,
+    "8": 40,
+    "9": 41,
+    "0": 42,
+    "left_of": 43,
+    "right_of": 44,
+    "above": 45,
+    "below": 46
+  },
+  "program_token_to_idx": {
+    "<NULL>": 0,
+    "<START>": 1,
+    "<END>": 2,
+    "scene": 3,
+    "And": 4,
+    "Color[green]": 5,
+    "Shape[A]": 6,
+    "Shape[B]": 7,
+    "Shape[C]": 8,
+    "Shape[D]": 9,
+    "Shape[E]": 10,
+    "Shape[F]": 11,
+    "Shape[G]": 12,
+    "Shape[H]": 13,
+    "Shape[I]": 14,
+    "Shape[J]": 15,
+    "Shape[K]": 16,
+    "Shape[L]": 17,
+    "Shape[M]": 18,
+    "Shape[N]": 19,
+    "Shape[O]": 20,
+    "Shape[P]": 21,
+    "Shape[Q]": 22,
+    "Shape[R]": 23,
+    "Shape[S]": 24,
+    "Shape[T]": 25,
+    "Shape[U]": 26,
+    "Shape[V]": 27,
+    "Shape[W]": 28,
+    "Shape[X]": 29,
+    "Shape[Y]": 30,
+    "Shape[Z]": 31,
+    "Shape[1]": 32,
+    "Shape[2]": 33,
+    "Shape[3]": 34,
+    "Shape[4]": 35,
+    "Shape[5]": 36,
+    "Shape[6]": 37,
+    "Shape[7]": 38,
+    "Shape[8]": 39,
+    "Shape[9]": 40,
+    "Shape[0]": 41,
+    "Color2[green]": 42,
+    "Shape2[A]": 43,
+    "Shape2[B]": 44,
+    "Shape2[C]": 45,
+    "Shape2[D]": 46,
+    "Shape2[E]": 47,
+    "Shape2[F]": 48,
+    "Shape2[G]": 49,
+    "Shape2[H]": 50,
+    "Shape2[I]": 51,
+    "Shape2[J]": 52,
+    "Shape2[K]": 53,
+    "Shape2[L]": 54,
+    "Shape2[M]": 55,
+    "Shape2[N]": 56,
+    "Shape2[O]": 57,
+    "Shape2[P]": 58,
+    "Shape2[Q]": 59,
+    "Shape2[R]": 60,
+    "Shape2[S]": 61,
+    "Shape2[T]": 62,
+    "Shape2[U]": 63,
+    "Shape2[V]": 64,
+    "Shape2[W]": 65,
+    "Shape2[X]": 66,
+    "Shape2[Y]": 67,
+    "Shape2[Z]": 68,
+    "Shape2[1]": 69,
+    "Shape2[2]": 70,
+    "Shape2[3]": 71,
+    "Shape2[4]": 72,
+    "Shape2[5]": 73,
+    "Shape2[6]": 74,
+    "Shape2[7]": 75,
+    "Shape2[8]": 76,
+    "Shape2[9]": 77,
+    "Shape2[0]": 78,
+    "Relate[left_of]": 79,
+    "Relate[right_of]": 80,
+    "Relate[above]": 81,
+    "Relate[below]": 82,
+    "Relate1[left_of]": 83,
+    "Relate1[right_of]": 84,
+    "Relate1[above]": 85,
+    "Relate1[below]": 86
+  },
+  "program_token_arity": {
+    "<NULL>": 1,
+    "<START>": 1,
+    "<END>": 1,
+    "scene": 0,
+    "And": 2,
+    "Color[green]": 1,
+    "Shape[A]": 1,
+    "Shape[B]": 1,
+    "Shape[C]": 1,
+    "Shape[D]": 1,
+    "Shape[E]": 1,
+    "Shape[F]": 1,
+    "Shape[G]": 1,
+    "Shape[H]": 1,
+    "Shape[I]": 1,
+    "Shape[J]": 1,
+    "Shape[K]": 1,
+    "Shape[L]": 1,
+    "Shape[M]": 1,
+    "Shape[N]": 1,
+    "Shape[O]": 1,
+    "Shape[P]": 1,
+    "Shape[Q]": 1,
+    "Shape[R]": 1,
+    "Shape[S]": 1,
+    "Shape[T]": 1,
+    "Shape[U]": 1,
+    "Shape[V]": 1,
+    "Shape[W]": 1,
+    "Shape[X]": 1,
+    "Shape[Y]": 1,
+    "Shape[Z]": 1,
+    "Shape[1]": 1,
+    "Shape[2]": 1,
+    "Shape[3]": 1,
+    "Shape[4]": 1,
+    "Shape[5]": 1,
+    "Shape[6]": 1,
+    "Shape[7]": 1,
+    "Shape[8]": 1,
+    "Shape[9]": 1,
+    "Shape[0]": 1,
+    "Color2[green]": 2,
+    "Shape2[A]": 2,
+    "Shape2[B]": 2,
+    "Shape2[C]": 2,
+    "Shape2[D]": 2,
+    "Shape2[E]": 2,
+    "Shape2[F]": 2,
+    "Shape2[G]": 2,
+    "Shape2[H]": 2,
+    "Shape2[I]": 2,
+    "Shape2[J]": 2,
+    "Shape2[K]": 2,
+    "Shape2[L]": 2,
+    "Shape2[M]": 2,
+    "Shape2[N]": 2,
+    "Shape2[O]": 2,
+    "Shape2[P]": 2,
+    "Shape2[Q]": 2,
+    "Shape2[R]": 2,
+    "Shape2[S]": 2,
+    "Shape2[T]": 2,
+    "Shape2[U]": 2,
+    "Shape2[V]": 2,
+    "Shape2[W]": 2,
+    "Shape2[X]": 2,
+    "Shape2[Y]": 2,
+    "Shape2[Z]": 2,
+    "Shape2[1]": 2,
+    "Shape2[2]": 2,
+    "Shape2[3]": 2,
+    "Shape2[4]": 2,
+    "Shape2[5]": 2,
+    "Shape2[6]": 2,
+    "Shape2[7]": 2,
+    "Shape2[8]": 2,
+    "Shape2[9]": 2,
+    "Shape2[0]": 2,
+    "Relate[left_of]": 2,
+    "Relate[right_of]": 2,
+    "Relate[above]": 2,
+    "Relate[below]": 2,
+    "Relate1[left_of]": 1,
+    "Relate1[right_of]": 1,
+    "Relate1[above]": 1,
+    "Relate1[below]": 1
+  },
+  "answer_token_to_idx": {
+    "false": 0,
+    "true": 1
+  },
+  "program_token_to_module_text": {
+    "Color[green]": [
+      "find",
+      "green"
+    ],
+    "Shape[A]": [
+      "find",
+      "A"
+    ],
+    "Shape[B]": [
+      "find",
+      "B"
+    ],
+    "Shape[C]": [
+      "find",
+      "C"
+    ],
+    "Shape[D]": [
+      "find",
+      "D"
+    ],
+    "Shape[E]": [
+      "find",
+      "E"
+    ],
+    "Shape[F]": [
+      "find",
+      "F"
+    ],
+    "Shape[G]": [
+      "find",
+      "G"
+    ],
+    "Shape[H]": [
+      "find",
+      "H"
+    ],
+    "Shape[I]": [
+      "find",
+      "I"
+    ],
+    "Shape[J]": [
+      "find",
+      "J"
+    ],
+    "Shape[K]": [
+      "find",
+      "K"
+    ],
+    "Shape[L]": [
+      "find",
+      "L"
+    ],
+    "Shape[M]": [
+      "find",
+      "M"
+    ],
+    "Shape[N]": [
+      "find",
+      "N"
+    ],
+    "Shape[O]": [
+      "find",
+      "O"
+    ],
+    "Shape[P]": [
+      "find",
+      "P"
+    ],
+    "Shape[Q]": [
+      "find",
+      "Q"
+    ],
+    "Shape[R]": [
+      "find",
+      "R"
+    ],
+    "Shape[S]": [
+      "find",
+      "S"
+    ],
+    "Shape[T]": [
+      "find",
+      "T"
+    ],
+    "Shape[U]": [
+      "find",
+      "U"
+    ],
+    "Shape[V]": [
+      "find",
+      "V"
+    ],
+    "Shape[W]": [
+      "find",
+      "W"
+    ],
+    "Shape[X]": [
+      "find",
+      "X"
+    ],
+    "Shape[Y]": [
+      "find",
+      "Y"
+    ],
+    "Shape[Z]": [
+      "find",
+      "Z"
+    ],
+    "Shape[1]": [
+      "find",
+      "1"
+    ],
+    "Shape[2]": [
+      "find",
+      "2"
+    ],
+    "Shape[3]": [
+      "find",
+      "3"
+    ],
+    "Shape[4]": [
+      "find",
+      "4"
+    ],
+    "Shape[5]": [
+      "find",
+      "5"
+    ],
+    "Shape[6]": [
+      "find",
+      "6"
+    ],
+    "Shape[7]": [
+      "find",
+      "7"
+    ],
+    "Shape[8]": [
+      "find",
+      "8"
+    ],
+    "Shape[9]": [
+      "find",
+      "9"
+    ],
+    "Shape[0]": [
+      "find",
+      "0"
+    ],
+    "Relate[left_of]": [
+      "relate",
+      "left_of"
+    ],
+    "Relate[right_of]": [
+      "relate",
+      "right_of"
+    ],
+    "Relate[above]": [
+      "relate",
+      "above"
+    ],
+    "Relate[below]": [
+      "relate",
+      "below"
+    ],
+    "And": [
+      "and",
+      "null"
+    ],
+    "<START>": [
+      "null",
+      "null"
+    ],
+    "<END>": [
+      "null",
+      "null"
+    ],
+    "<NULL>": [
+      "null",
+      "null"
+    ]
+  },
+  "module_token_to_idx": {
+    "find": 0,
+    "relate": 1,
+    "and": 2
+  },
+  "text_token_to_idx": {
+    "null": 0,
+    "green": 1,
+    "A": 2,
+    "B": 3,
+    "C": 4,
+    "D": 5,
+    "E": 6,
+    "F": 7,
+    "G": 8,
+    "H": 9,
+    "I": 10,
+    "J": 11,
+    "K": 12,
+    "L": 13,
+    "M": 14,
+    "N": 15,
+    "O": 16,
+    "P": 17,
+    "Q": 18,
+    "R": 19,
+    "S": 20,
+    "T": 21,
+    "U": 22,
+    "V": 23,
+    "W": 24,
+    "X": 25,
+    "Y": 26,
+    "Z": 27,
+    "1": 28,
+    "2": 29,
+    "3": 30,
+    "4": 31,
+    "5": 32,
+    "6": 33,
+    "7": 34,
+    "8": 35,
+    "9": 36,
+    "0": 37,
+    "left_of": 38,
+    "right_of": 39,
+    "above": 40,
+    "below": 41
+  }
+}
