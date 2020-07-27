@@ -42,23 +42,58 @@ COLORS = ['red', 'green', 'blue', 'yellow', 'cyan',
           'purple', 'brown', 'gray']
 SHAPES = list(string.ascii_uppercase) + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
+# === Definition of modules for NMN === #
+
+def shape_module(shape):
+    return "Shape[{}]".format(shape)
+
+
+def binary_shape_module(shape):
+    return "Shape2[{}]".format(shape)
+
+
+def color_module(color):
+    return "Color[{}]".format(color)
+
+
+def binary_color_module(color):
+    return "Color2[{}]".format(color)
+
+
+def relation_module(relation):
+    return "Relate[{}]".format(relation)
+
+
+def unary_relation_module(relation):
+    return "Relate1[{}]".format(relation)
+
+
 image_size = 64
 min_obj_size = 10
 max_obj_size = 15
 num_shapes=len(SHAPES)
 num_colors=1
-num_objects=2
 rhs_variety=1
 split='systematic'
 num_repeats=10
 num_repeats_eval=10
 fontsize=15
 font='./../arial.ttf'
-vocab = SHAPES[:num_shapes]
 FONT_OBJECTS = {font_size: ImageFont.truetype(font) for font_size in range(10, 16)}
-
+vocab = SHAPES[:num_shapes]
 question_words = (['<NULL>', '<START>', '<END>', 'is', 'there', 'a', 'green'] + vocab + RELATIONS)
 question_vocab = {word: i for i, word in enumerate(question_words)}
+
+# num_objects = 2  # this must be given externally
+
+program_words = (['<NULL>', '<START>', '<END>', 'scene', 'And']
+                 + [color_module('green')]
+                 + [shape_module(shape) for shape in vocab]
+                 + [binary_color_module('green') ]
+                 + [binary_shape_module(shape) for shape in vocab]
+                 + [relation_module(rel) for rel in RELATIONS]
+                 + [unary_relation_module(rel) for rel in RELATIONS])
+program_vocab = {word: i for i, word in enumerate(program_words)}
 
 
 class Object(object):
@@ -155,7 +190,7 @@ def LongTailSampler(long_tail_dist):
     return partial(_LongTailSampler, long_tail_dist)
 
 
-def generate_scene_(rng, sampler, objects=[], restrict=False, **kwargs):
+def generate_scene_(rng, sampler, objects=[], num_objects=0, restrict=False, **kwargs):
     orig_objects = objects
 
     objects = list(orig_objects)
@@ -170,7 +205,7 @@ def generate_scene_(rng, sampler, objects=[], restrict=False, **kwargs):
         # first, select which object to draw by rejection sampling
         shape = sampler.sample_object(restricted_obj, [], **kwargs)
 
-        new_object = get_random_spot(rng, objects)
+        new_object = get_random_spot_(rng, objects)
         if new_object is None:
             place_failures += 1
             if place_failures == 10:
@@ -266,6 +301,156 @@ def evaluate_activations(X, R, Y, pos_x=[5,5], pos_y=[20,20],
     tree_scores = tree_model.classifier(res[:, -1, :, :, :])
 
     return img_npy, maps, F.softmax(tree_scores, dim=1)
+
+
+def get_random_spot_(rng, objects, rel=None,  rel_holds=False, rel_obj=0):
+    """Get a spot for a new object that does not overlap with existing ones."""
+    # then, select the object size
+    size = rng.randint(min_obj_size, max_obj_size + 1)
+    angle = 0
+    obj = Object(size, angle)
+
+    min_center = obj.rotated_size // 2 + 1
+    max_center = image_size - obj.rotated_size // 2 - 1
+
+    if rel is not None:
+        if rel_holds == False:
+            # do not want the relation to be true
+            max_center_x = objects[rel_obj].pos[0] if rel == 'left_of' else max_center
+            min_center_x = objects[rel_obj].pos[0] if rel == 'right_of' else min_center
+            max_center_y = objects[rel_obj].pos[1] if rel == 'below' else max_center
+            min_center_y = objects[rel_obj].pos[1] if rel == 'above' else min_center
+        else:
+            # want the relation to be true
+            min_center_x = objects[rel_obj].pos[0] if rel == 'left_of' else min_center
+            max_center_x = objects[rel_obj].pos[0] if rel == 'right_of' else max_center
+            min_center_y = objects[rel_obj].pos[1] if rel == 'below' else min_center
+            max_center_y = objects[rel_obj].pos[1] if rel == 'above' else max_center
+
+        if min_center_x >= max_center_x: return None
+        if min_center_y >= max_center_y: return None
+
+    else:
+        min_center_x = min_center_y = min_center
+        max_center_x = max_center_y = max_center
+
+    for attempt in range(10):
+        x = rng.randint(min_center_x, max_center_x)
+        y = rng.randint(min_center_y, max_center_y)
+        obj.pos = (x, y)
+
+        # make sure there is no overlap between bounding squares
+        if (any([abs(obj.pos[0] - other.pos[0]) < 5 for other in objects]) or
+            any([abs(obj.pos[1] - other.pos[1]) < 5 for other in objects])):
+            continue
+        if any([obj.overlap(other) for other in objects]):
+            continue
+        return obj
+    else:
+        return None
+
+
+def generate_image_and_question_(pair, sampler, rng, label, rel, num_objects):
+    # x rel y has value label where pair == (x, y)
+    x, y = pair
+
+    if label:
+        obj1 = get_random_spot_(rng, [])
+        obj2 = get_random_spot_(rng, [obj1])
+        if not obj2 or not obj1.relate(rel, obj2): return None, None, None, False, 'a'
+        obj1.shape = x
+        obj2.shape = y
+        scene = generate_scene_(rng, sampler, objects=[obj1, obj2], num_objects=num_objects, restrict=False, relation=rel)
+    else:
+        # first generate a scene
+        obj1 = get_random_spot_(rng, [])
+        obj2 = get_random_spot_(rng, [obj1], rel=rel, rel_holds=False)
+        if not obj2 or obj1.relate(rel, obj2): return None, None, None, False, 'b'
+        obj1.shape = x
+        obj2.shape = y
+
+        scene = generate_scene_(rng, sampler, objects=[obj1, obj2], num_objects=num_objects, restrict=True, relation=rel)
+        # choose x,y,x', y' st. x r' y, x r y', x' r y holds true
+
+        if num_objects >=4:
+
+            obj3 = scene[2]  # x'
+            obj4 = scene[3]  # y'
+
+            if not obj1.relate(rel, obj4): return None, None, None, False, 'c'
+            elif not obj3.relate(rel, obj2): return None, None, None, False, 'd'
+
+    color1 = "green"
+    color2 = "green"
+    shape1 = x
+    shape2 = y
+    question = [x, rel, y]
+    program = ["<START>", relation_module(rel),
+               shape_module(shape1), "scene",
+               shape_module(shape2), "scene",
+               "<END>"]
+
+    return scene, question, program, True, 'f'
+
+
+def gen_data_(obj_pairs, sampler, seed, prefix, num_objects, vocab_dataset):
+    num_examples = len(obj_pairs)
+
+    max_question_len = 3
+    max_program_len = 7
+
+    presampled_relations_idx = list(obj_pairs[:, 1])
+    presampled_relations = [vocab_dataset['question_idx_to_token'][i_] for i_ in presampled_relations_idx]
+
+    obj_pairs_ = obj_pairs[:, ::2]
+    obj_pairs = [[vocab_dataset['question_idx_to_token'][ob[0]],
+                  vocab_dataset['question_idx_to_token'][ob[1]]]
+                    for ob in obj_pairs_]
+
+    print('object pairs', len(obj_pairs))
+    # presampled_relations = [sampler.sample_relation() for ex in obj_pairs] # pre-sample relations
+    with h5py.File(prefix + '_questions.h5', 'w') as dst_questions, h5py.File(prefix + '_features.h5', 'w') as dst_features:
+        features_dtype = h5py.special_dtype(vlen=np.dtype('uint8'))
+        features_dataset = dst_features.create_dataset('features', (num_examples,), dtype=features_dtype)
+        questions_dataset = dst_questions.create_dataset('questions', (num_examples, max_question_len), dtype=np.int64)
+        programs_dataset = dst_questions.create_dataset('programs', (num_examples, max_program_len), dtype=np.int64)
+        answers_dataset = dst_questions.create_dataset('answers', (num_examples,), dtype=np.int64)
+        image_idxs_dataset = dst_questions.create_dataset('image_idxs', (num_examples,), dtype=np.int64)
+
+        i = 0
+        rejection_sampling = {'a' : 0, 'b' : 0, 'c' : 0, 'd' : 0, 'e' : 0, 'f' : 0}
+
+        # different seeds for train/dev/test
+        rng = np.random.RandomState(seed)
+        before = time.time()
+        scenes = []
+        while i < len(obj_pairs):
+            scene, question, program, success, key = generate_image_and_question_(
+                obj_pairs[i], sampler, rng, (i % 2) == 0, presampled_relations[i], num_objects)
+            rejection_sampling[key] += 1
+            if success:
+                scenes.append(scene)
+                buffer_ = io.BytesIO()
+                image = draw_scene_(scene)
+                image.save(buffer_, format='png')
+                buffer_.seek(0)
+                features_dataset[i]   = np.frombuffer(buffer_.read(), dtype='uint8')
+                questions_dataset[i]  = [question_vocab[w] for w in question]
+                programs_dataset[i]   = [program_vocab[w] for w in program]
+                answers_dataset[i]    = int( (i%2) == 0)
+                image_idxs_dataset[i] = i
+
+                i += 1
+                if i % 1000 == 0:
+                    time_data = "{} seconds per example".format((time.time() - before) / i )
+                    print(time_data)
+                print("\r>> Done with %d/%d examples : %s " %(i+1, len(obj_pairs),  rejection_sampling), end = '')
+                sys.stdout.flush()
+
+    print("{} seconds per example".format((time.time() - before) / len(obj_pairs) ))
+
+    with open(prefix + '_scenes.json', 'w') as dst:
+        json.dump(scenes, dst, indent=2, cls=CustomJSONEncoder)
 
 
 def retrieve_id_repeated_experiments(slurm_id=None, path_model='.', args=None):
