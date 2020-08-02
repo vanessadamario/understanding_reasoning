@@ -34,12 +34,22 @@ def _chain_tau():
     tau_0[2][3] = tau_1[2][0] = 100 #3rd block - lhs inp 2nd block, rhs inp sentinel
     return tau_0, tau_1
 
+
 def _chain_with_shortcuts_tau():
     tau_0 = torch.zeros(3, 4)
     tau_1 = torch.zeros(3, 4)
     tau_0[0][1] = tau_1[0][0] = 100 #1st block - lhs inp img, rhs inp sentinel
     tau_0[1][2] = tau_1[1][1] = 100 #2nd block - lhs inp 1st block, rhs img
     tau_0[2][3] = tau_1[2][1] = 100 #3rd block - lhs inp 2nd block, rhs img 
+    return tau_0, tau_1
+
+
+def _chain_with_shortcuts_tau_flipped():
+    tau_0 = torch.zeros(3, 4)
+    tau_1 = torch.zeros(3, 4)
+    tau_0[0][1] = tau_1[0][0] = 100  # 1st block - lhs inp img, rhs inp sentinel
+    tau_0[1][1] = tau_1[1][2] = 100  # 2nd block - lhs inp img, rhs 1st block
+    tau_0[2][1] = tau_1[2][3] = 100  # 3rd block - lhs inp img, rhs 2nd block
     return tau_0, tau_1
 
 
@@ -269,12 +279,15 @@ class SHNMN(nn.Module):
         elif tau_init == 'chain_with_shortcuts':
             tau_0, tau_1 = _chain_with_shortcuts_tau() 
             print("initializing with chain and shortcuts")
+        elif tau_init == 'chain_with_shortcuts_flipped':
+            tau_0, tau_1 = _chain_with_shortcuts_tau_flipped()
+            print("initializing with chain and shortcuts")
 
         else:
             tau_0, tau_1 = _random_tau(num_modules)
 
         if hard_code_tau:
-            assert(tau_init in ['chain', 'tree', 'chain_with_shortcuts'])
+            assert(tau_init in ['chain', 'tree', 'chain_with_shortcuts', 'chain_with_shortcuts_flipped'])
             self.tau_0 = Variable(tau_0)
             self.tau_1 = Variable(tau_1)
             self.tau_0 = self.tau_0.to(device)
