@@ -231,24 +231,35 @@ def draw_scene_(objects):
     return img
 
 
-def evaluate_activations(X, R, Y, pos_x=[5,5], pos_y=[20,20],
+def __evaluate_activations(X, R, Y, pos_x=[5, 5], pos_y=[20, 20],
                          path_vocab_dataset='.',
                          path_model='.',
                          model_file='something.pt.best',
-                         img_npy=None):
+                         img_npy=None,
+                         flip_question=False,
+                         normalization=False,
+                         show=True,
+                         gpu_id=0):
+    """ Old version of evaluate_activations """
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = "%i" % gpu_id
+    device = torch.device('cuda:%i' % gpu_id if torch.cuda.is_available() else 'cpu')
+
+    # put the flipped option
+    # same image, flipped objects
 
     question_idx = [X, R, Y]
 
-    uniform_dist = [1.0 / len(vocab) ]*len(vocab)
+    uniform_dist = [1.0 / len(vocab)]*len(vocab)
     sampler_class = LongTailSampler(uniform_dist)
 
-    test_sampler  = sampler_class(True,  3, vocab)
+    test_sampler = sampler_class(True,  3, vocab)
 
     seed = 1
     rng = np.random.RandomState(seed)
 
-    obj1=Object(fontsize=10, angle=0, pos=pos_x)
-    obj2=Object(fontsize=10, angle=0, pos=pos_y)
+    obj1 = Object(fontsize=10, angle=0, pos=pos_x)
+    obj2 = Object(fontsize=10, angle=0, pos=pos_y)
 
     vocab_dataset = load_vocab(path_vocab_dataset)
     question = [vocab_dataset['question_idx_to_token'][q_] for q_ in question_idx]
@@ -260,19 +271,28 @@ def evaluate_activations(X, R, Y, pos_x=[5,5], pos_y=[20,20],
         img = draw_scene_(scene)
         img_npy = np.array(img).transpose(2, 0, 1) / 255
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
     tree_model, tree_kwargs = load_execution_engine(join(path_model, model_file))
 
     if torch.cuda.is_available():
+    # with torch.cuda.device(gpu_id):
         tree_model.cuda()
+    # tree_model.to(device)
     tree_model.eval()
+
+    if flip_question:
+        question_idx = [Y, R, X]
 
     question_torch = torch.tensor(question_idx)
     feats_torch = torch.tensor((np.array(img_npy).reshape(1, 3, 64, 64)).astype('float32'))
 
     question_var = Variable(question_torch.to(device))
     feats_var = Variable(feats_torch.to(device))
+
+    # question_var = question_var.to(device)
+    # feats_var = feats_var.to(device)
+    # if torch.cuda.device(gpu_id):
+    #    question_var = Variable(question_torch.cuda())
+    #    feats_var = Variable(feats_torch.cuda())
 
     question_embed = tree_model.question_embeddings(question_var)
     stem_image = tree_model.stem(feats_var)
@@ -286,21 +306,255 @@ def evaluate_activations(X, R, Y, pos_x=[5,5], pos_y=[20,20],
                       tau_0=Variable(tree_model.tau_0),
                       tau_1=Variable(tree_model.tau_1),
                       func=tree_model.func)
+    print('res shape', res.shape)
+    if normalization:
+        normalization_const = np.load(join(path_model,
+                                           '%s_norm_const.npy' % model_file.split('.')[0]))
+    else:
+        # we remove the sentinel and the image
+        normalization_const = np.ones((res.shape[1]-2, res.shape[2]))
 
-    maps = res.cpu().detach().numpy()[0]
+    maps = res.cpu().detach().numpy()[0]  # one sample at the time
+    print('maps shape', maps.shape)
+    for i_ in range(2, maps.shape[0]):
+        for j_ in range(maps.shape[1]):
+            maps[i_, j_, :, :] = maps[i_, j_, :, :]/normalization_const[i_-2, j_]
 
-    for id_map in range(maps.shape[1]):
-        print(id_map)
-        fig, ax = plt.subplots(figsize=(15, 5), ncols=maps.shape[0])
-        for id_module in range(maps.shape[0]):
-            im = ax[id_module].imshow(maps[id_module, id_map])
-            plt.colorbar(im, ax=ax[id_module], fraction=0.046)
-            ax[id_module].set_axis_off()
-        plt.show()
+    if show:
+        for id_map in range(maps.shape[1]):
+            print(id_map)
+            fig, ax = plt.subplots(figsize=(15, 5), ncols=maps.shape[0])
+            for id_module in range(maps.shape[0]):
+                im = ax[id_module].imshow(maps[id_module, id_map])
+                plt.colorbar(im, ax=ax[id_module], fraction=0.046)
+                ax[id_module].set_axis_off()
+            plt.show()
 
     tree_scores = tree_model.classifier(res[:, -1, :, :, :])
+    pred = F.softmax(tree_scores, dim=1).cpu().detach().numpy()
 
-    return img_npy, maps, F.softmax(tree_scores, dim=1)
+    del tree_model, question_torch, feats_torch, question_var, feats_var
+    del question_embed, stem_image, res, tree_scores
+
+    return img_npy, maps, pred
+
+
+def generate_scene_dataset(path_vocab_dataset,
+                           obj_x='P',
+                           obj_y='Y',
+                           rel='above',
+                           obj_flip='Z',
+                           flip_question=True,
+                           img_size=64):
+    """ We generate a dataset containing images and questions,
+    where we move the two objects around, with the option of
+    flipping the question and flipping the objects.
+    :param path_vocab_dataset: str, path to the vocab.json file
+    :param obj_x: str, first object in the question
+    :param obj_y: str, second object in the question
+    :param rel: str, relation (above, below, left of, right of)
+    :param obj_flip: str, if we want to change the second object, if not put None
+    :param flip_question: bool, same images, flipped objects in the question
+    :param img_size: int, size of the square image dimension
+    :returns img: numpy array of dimensions (#data_size, channels, image_size, image_size)
+    :returns qst: numpy array of dimensions (#data_size, 3)
+    """
+
+    flip_lst = [False, True] if flip_question else [False]
+    tuple_lst = []
+    array_positions = np.arange(5, 65, 20)
+    vocab_data = load_vocab(path_vocab_dataset)
+    question_id = [vocab_data['question_token_to_idx'][q_] for q_ in [obj_x, obj_y]]
+    tuple_lst.append((question_id[0], question_id[1]))
+    if obj_flip:
+        question_id = [vocab_data['question_token_to_idx'][q_] for q_ in [obj_x, obj_flip]]
+        tuple_lst.append((question_id[0], question_id[1]))
+    rel_idx = vocab_data['question_token_to_idx'][rel]
+
+    img = np.zeros((len(flip_lst),
+                    len(tuple_lst),
+                    array_positions.size ** 2,
+                    array_positions.size ** 2,
+                    3,  # RGB channels
+                    img_size,
+                    img_size),
+                   dtype=np.float32)
+    qst = np.zeros((len(flip_lst),
+                    len(tuple_lst),
+                    array_positions.size ** 2,
+                    array_positions.size ** 2,
+                    3),
+                   dtype=int)  # elements in the question
+
+    uniform_dist = [1.0 / len(vocab)] * len(vocab)
+    sampler_class = LongTailSampler(uniform_dist)
+    test_sampler = sampler_class(True, 3, vocab)
+
+    seed = 1
+    rng = np.random.RandomState(seed)
+
+    for id_flip, flip in enumerate(flip_lst):  # flip or not the question, not the image
+        for id_tuple, XX in enumerate(tuple_lst):
+            obj1 = Object(fontsize=10,
+                          angle=0,
+                          pos=[0, 0],
+                          shape=vocab_data['question_idx_to_token'][XX[0]])
+            obj2 = Object(fontsize=10,
+                          angle=0,
+                          pos=[0, 0],
+                          shape=vocab_data['question_idx_to_token'][XX[1]])
+            tmp_qst = [XX[1], rel_idx, XX[0]] if flip else [XX[0], rel_idx, XX[1]]
+
+            for id_Y_x, Y_x in enumerate(array_positions):
+                for id_Y_y, Y_y in enumerate(array_positions):
+                    obj2.pos = [Y_x, Y_y]
+                    for id_X_x, X_x in enumerate(array_positions):
+                        for id_X_y, X_y in enumerate(array_positions):
+                            obj1.pos = [X_x, X_y]
+                            scene = generate_scene_(rng, test_sampler,
+                                                    objects=[obj1, obj2],
+                                                    restrict=True,
+                                                    relation=rel)
+                            img_ = draw_scene_(scene)
+                            img[id_flip, id_tuple,
+                                array_positions.size * id_Y_x + id_Y_y,
+                                array_positions.size * id_X_x + id_X_y] = np.array(img_).transpose(2, 0, 1) / 255.
+
+                            qst[id_flip,
+                                id_tuple,
+                                array_positions.size * id_Y_x + id_Y_y,
+                                array_positions.size * id_X_x + id_X_y] = tmp_qst
+
+    return img, qst
+
+
+def evaluate_activations(X, R, Y, pos_x=[5, 5], pos_y=[20, 20],
+                         images=None,
+                         questions=None,
+                         path_vocab_dataset='.',
+                         path_model='.',
+                         model_file='something.pt.best',
+                         img_npy=None,
+                         flip_question=False,
+                         normalization=False,
+                         show=False,
+                         gpu_id=0):
+    """ Evaluate activations maps across the three modules.
+    It can be use for single points as well as for larger sets,
+    as long as they fit in a single GPU.
+    :param X: int, index for the first object in the question
+    :param R: int, index for the relation
+    :param Y: int, index for the second object in the question
+    :param pos_x: list, contains ints for first object's x and y coordinates
+    :param pos_y: list, contains ints for second object's x and y coordinates
+    :param path_vocab_dataset: str, path to the vocab.json file
+    :param path_model: str, path to the folder containing models
+    :param model_file: str, name of the model
+    :param img_npy: default None, otherwise to be used with X,R,Y on single example
+    :param flip_question: bool, default False
+    :param normalization: bool, normalization based on the
+        maximum activity of each filter (64 per module)
+    :param show: default False, shows the activity map for a single data point
+    :param gpu_id: int, default 0, index of the gpu to be used
+
+    :return img_npy: numpy array containing the scene
+    :return maps: numpy array containing the activations
+    :return pred: numpy array containing the prediction for each scene
+    """
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = "%i" % gpu_id
+    device = torch.device('cuda:%i' % gpu_id if torch.cuda.is_available() else 'cpu')
+
+    if (images is not None) and (questions is not None):  # we are given a data set
+        data_shape = [dim_ for dim_ in questions.shape[:-1]]  # batch size
+        img_size = images.shape[-1]
+        img_npy = images.reshape(-1, 3, img_size, img_size)
+        question_idx = questions.reshape(-1, 3)
+    else:  # if not we generate it
+        img_size = 64
+        data_shape = [1]
+        question_idx = [X, R, Y]
+        uniform_dist = [1.0 / len(vocab)]*len(vocab)
+        sampler_class = LongTailSampler(uniform_dist)
+        test_sampler = sampler_class(True,  3, vocab)
+        seed = 1
+        rng = np.random.RandomState(seed)
+
+        obj1 = Object(fontsize=10, angle=0, pos=pos_x)
+        obj2 = Object(fontsize=10, angle=0, pos=pos_y)
+        vocab_dataset = load_vocab(path_vocab_dataset)
+        question = [vocab_dataset['question_idx_to_token'][q_] for q_ in question_idx]
+
+        if img_npy is None:
+            obj1.shape = question[0]
+            obj2.shape = question[2]
+            scene = generate_scene_(rng, test_sampler, objects=[obj1, obj2], restrict=True, relation=question[1])
+            img = draw_scene_(scene)
+            img_npy = ((np.array(img).transpose(2, 0, 1) / 255).reshape(1, 3, img_size, img_size)).astype('float32')
+
+        if flip_question:
+            question_idx = [Y, R, X]
+
+    tree_model, tree_kwargs = load_execution_engine(join(path_model, model_file))
+    if torch.cuda.is_available():
+        tree_model.cuda()
+    tree_model.eval()
+
+    question_torch = torch.tensor(question_idx)
+    feats_torch = torch.tensor(img_npy)
+
+    question_var = Variable(question_torch.to(device))
+    feats_var = Variable(feats_torch.to(device))
+
+    question_embed = tree_model.question_embeddings(question_var)
+    stem_image = tree_model.stem(feats_var)
+
+    res = _shnmn_func(question=question_embed,
+                      img=stem_image.unsqueeze(1),
+                      num_modules=tree_model.num_modules,
+                      alpha=tree_model.alpha,
+                      tau_0=Variable(tree_model.tau_0),
+                      tau_1=Variable(tree_model.tau_1),
+                      func=tree_model.func)
+    print('res shape', res.shape)
+
+    del question_embed, stem_image, question_var, feats_var, question_torch, feats_torch
+
+    tree_scores = tree_model.classifier(res[:, -1, :, :, :])
+    del tree_model
+
+    pred = F.softmax(tree_scores, dim=1).cpu().detach().numpy()
+    maps = res.cpu().detach().numpy()  # [0]  # one sample at the time
+    del tree_scores, res
+
+    if normalization:
+        normalization_const = np.load(join(path_model,
+                                           '%s_norm_const.npy' % model_file.split('.')[0]))
+    else:
+        normalization_const = np.ones((maps.shape[1]-2, maps.shape[2]))
+
+    print('maps shape', maps.shape)
+    for i_ in range(2, maps.shape[1]):
+        for j_ in range(maps.shape[2]):
+            maps[:, i_, j_, :, :] = maps[:, i_, j_, :, :]/normalization_const[i_-2, j_]
+
+    data_shape_ = data_shape + [dim_ for dim_ in maps.shape[1:]]
+
+    if show:
+        maps_ = maps[0]
+        for id_map in range(maps_.shape[1]):
+            print(id_map)
+            fig, ax = plt.subplots(figsize=(15, 5), ncols=maps.shape[0])
+            for id_module in range(maps_.shape[0]):
+                im = ax[id_module].imshow(maps_[id_module, id_map])
+                plt.colorbar(im, ax=ax[id_module], fraction=0.046)
+                ax[id_module].set_axis_off()
+            plt.show()
+
+    img_npy = img_npy.reshape(data_shape + [3, img_size, img_size])
+    maps = maps.reshape(data_shape_)  # reshape the activation maps
+    pred = pred.reshape(data_shape + [2])  # given that we have two classes
+    return img_npy, maps, pred
 
 
 def get_random_spot_(rng, objects, rel=None,  rel_holds=False, rel_obj=0):
@@ -393,12 +647,23 @@ def generate_image_and_question_(pair, sampler, rng, label, rel, num_objects):
     return scene, question, program, True, 'f'
 
 
-def gen_data_(obj_pairs, sampler, seed, prefix, num_objects, vocab_dataset):
+def gen_data_(obj_pairs, sampler, seed, prefix, num_objects, vocab_dataset,
+              output_path='.'):
+    """ Data generation process. Given the data and the object pairs we create a dataset.
+    :param obj_pairs:
+    :param sampler:
+    :param seed:
+    :param prefix:
+    :param num_objects:
+    :param vocab_dataset:
+    :param output_path:
+    :return:
+    """
     num_examples = len(obj_pairs)
 
     max_question_len = 3
     max_program_len = 7
-
+    # list containing numpy arrays of 3 elements
     presampled_relations_idx = list(obj_pairs[:, 1])
     presampled_relations = [vocab_dataset['question_idx_to_token'][i_] for i_ in presampled_relations_idx]
 
@@ -407,9 +672,7 @@ def gen_data_(obj_pairs, sampler, seed, prefix, num_objects, vocab_dataset):
                   vocab_dataset['question_idx_to_token'][ob[1]]]
                     for ob in obj_pairs_]
 
-    print('object pairs', len(obj_pairs))
-    # presampled_relations = [sampler.sample_relation() for ex in obj_pairs] # pre-sample relations
-    with h5py.File(prefix + '_questions.h5', 'w') as dst_questions, h5py.File(prefix + '_features.h5', 'w') as dst_features:
+    with h5py.File(join(output_path, prefix + '_questions.h5'), 'w') as dst_questions, h5py.File(join(output_path, prefix + '_features.h5'), 'w') as dst_features:
         features_dtype = h5py.special_dtype(vlen=np.dtype('uint8'))
         features_dataset = dst_features.create_dataset('features', (num_examples,), dtype=features_dtype)
         questions_dataset = dst_questions.create_dataset('questions', (num_examples, max_question_len), dtype=np.int64)
@@ -418,7 +681,7 @@ def gen_data_(obj_pairs, sampler, seed, prefix, num_objects, vocab_dataset):
         image_idxs_dataset = dst_questions.create_dataset('image_idxs', (num_examples,), dtype=np.int64)
 
         i = 0
-        rejection_sampling = {'a' : 0, 'b' : 0, 'c' : 0, 'd' : 0, 'e' : 0, 'f' : 0}
+        rejection_sampling = {'a': 0, 'b': 0, 'c': 0, 'd': 0, 'e': 0, 'f': 0}
 
         # different seeds for train/dev/test
         rng = np.random.RandomState(seed)
@@ -434,10 +697,10 @@ def gen_data_(obj_pairs, sampler, seed, prefix, num_objects, vocab_dataset):
                 image = draw_scene_(scene)
                 image.save(buffer_, format='png')
                 buffer_.seek(0)
-                features_dataset[i]   = np.frombuffer(buffer_.read(), dtype='uint8')
-                questions_dataset[i]  = [question_vocab[w] for w in question]
-                programs_dataset[i]   = [program_vocab[w] for w in program]
-                answers_dataset[i]    = int( (i%2) == 0)
+                features_dataset[i] = np.frombuffer(buffer_.read(), dtype='uint8')
+                questions_dataset[i] = [question_vocab[w] for w in question]
+                programs_dataset[i] = [program_vocab[w] for w in program]
+                answers_dataset[i] = int((i % 2) == 0)
                 image_idxs_dataset[i] = i
 
                 i += 1
@@ -449,8 +712,33 @@ def gen_data_(obj_pairs, sampler, seed, prefix, num_objects, vocab_dataset):
 
     print("{} seconds per example".format((time.time() - before) / len(obj_pairs) ))
 
-    with open(prefix + '_scenes.json', 'w') as dst:
+    with open(join(output_path, prefix + '_scenes.json'), 'w') as dst:
         json.dump(scenes, dst, indent=2, cls=CustomJSONEncoder)
+
+
+def generate_in_sample(path_data, n_objects=2, in_sample_test_dim=6000, output_path='.'):
+    vocab_dataset = load_vocab(join(path_data, 'vocab.json'))
+    question_tr = h5py.File(join(path_data, 'train_questions.h5'), 'r')
+
+    unique_questions = np.unique(np.array(question_tr['questions']), axis=0)
+    rep = in_sample_test_dim // unique_questions.shape[0]
+    new_questions_ = np.zeros((rep * unique_questions.shape[0], 3), dtype=int)
+    for id_q_, q_ in enumerate(unique_questions):
+        new_questions_[id_q_ * rep:(id_q_ + 1) * rep, :] = q_ * np.ones((rep, 3), dtype=int)
+
+    seed = 1
+    uniform_dist = [1.0 / len(vocab)] * len(vocab)
+    sampler_class = LongTailSampler(uniform_dist)
+    train_sampler = sampler_class(False, 1, vocab)
+    gen_data_(new_questions_,
+              sampler=train_sampler,
+              seed=seed,
+              prefix='test_in_sample',
+              num_objects=n_objects,
+              vocab_dataset=vocab_dataset,
+              output_path=output_path)
+
+    return
 
 
 def retrieve_id_repeated_experiments(slurm_id=None, path_model='.', args=None):
@@ -512,3 +800,35 @@ def retrieve_id_repeated_experiments(slurm_id=None, path_model='.', args=None):
                 continue
 
         return lst_equal_files
+
+
+def read_output_files(slurm_id_lst,
+                      path_output,
+                      output_starts_with='output_'):
+    """
+    ----------------
+    Parameters
+        slurm_id_lst: str, slurm id from which we extract the hyperparameters
+        path_model: str, root path to the files
+    ----------------
+    Returns
+        test error: np.array of test error
+    """
+    if slurm_id_lst is None:
+        output_list_files = path_output
+    else:
+        output_list_files = [join(path_output, '%s%s.pt.best.h5' % (output_starts_with, slurm_id)) for slurm_id in slurm_id_lst]
+
+    test_accuracy = []
+
+    for output_file in output_list_files:
+        output = h5py.File(output_file, 'r')
+        correct = np.array(list(output['correct']))
+
+        test_accuracy.append(np.sum(correct).astype('float') / correct.size)
+        probs = np.array(list(output['probs']))
+        scores = np.array(list(output['scores']))
+
+    test_accuracy = np.array(test_accuracy)
+    return 1 - test_accuracy
+

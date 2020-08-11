@@ -192,9 +192,9 @@ def main():
     root_path = './../..'
 
     # TODO: change the following 3 def based on the dataset and the models
-    lhs = 1
-    module_type = 'residual'  # find or residual
-    model_type = 'chain_w_shortcuts_flipped'  # tree, chain, chain_w_shortcuts, chain_w_shortcuts_flipped
+    lhs = 18
+    module_type = 'find'  # find or residual
+    model_type = 'tree'  # tree, chain, chain_w_shortcuts, chain_w_shortcuts_flipped
     n_objects = 2
 
     path_to_dataset = join(root_path,
