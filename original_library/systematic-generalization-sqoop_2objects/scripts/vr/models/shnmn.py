@@ -1,17 +1,16 @@
+import sys
 import numpy
 import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-
 from vr.models.layers import init_modules, ResidualBlock, SimpleVisualBlock, GlobalAveragePool, Flatten
 from vr.models.layers import build_classifier, build_stem, ConcatBlock
 import vr.programs
-
 from torch.nn.init import kaiming_normal, kaiming_uniform, xavier_uniform, xavier_normal, constant, uniform
-
 from vr.models.filmed_net import FiLM, FiLMedResBlock, ConcatFiLMedResBlock, coord_map
+from vr.models.film_gen import FiLMGen
 from functools import partial
 
 
@@ -95,13 +94,28 @@ def _shnmn_func(question, img, num_modules, alpha, tau_0, tau_1, func):
         tau_0_curr = F.softmax(tau_0[i, :(i+2)], dim=0)
         tau_1_curr = F.softmax(tau_1[i, :(i+2)], dim=0)
 
-        question_rep = torch.sum(alpha_curr.view(1,-1,1)*question, dim=1) #(B,D)
+        if type(func) is list:
+            if len(func) == 3:
+                question_indexes = [0, 2, 1]
+                question_rep = question[question_indexes[i]]
+                func_ = func[question_indexes[i]]
+        else:
+            question_rep = torch.sum(alpha_curr.view(1,-1,1)*question, dim=1) #(B,D)
         # B x C x H x W
-        lhs_rep = torch.sum(tau_0_curr.view(1, (i+2), 1, 1, 1)*h_prev, dim=1)
-        # B x C x H x W
-        rhs_rep = torch.sum(tau_1_curr.view(1, (i+2), 1, 1, 1)*h_prev, dim=1)
-        h_i = func(question_rep, lhs_rep, rhs_rep) # B x C x H x W
 
+        lhs_rep = torch.sum((tau_0_curr.view(1, (i+2), 1, 1, 1))*h_prev, dim=1)
+        # B x C x H x W
+        rhs_rep = torch.sum((tau_1_curr.view(1, (i+2), 1, 1, 1))*h_prev, dim=1)
+
+        if type(func) is list:
+            if len(func) == 3:
+                h_i = func_(question_rep, lhs_rep, rhs_rep)  # B x C x H x W
+            else:
+                raise ValueError("Not valid list of modules' functions")
+        else:
+            h_i = func(question_rep, lhs_rep, rhs_rep)  # B x C x H x W
+
+        # print(h_prev.shape, h_i.shape)
         h_prev = torch.cat([h_prev, h_i.unsqueeze(1)], dim=1)
 
     return h_prev
@@ -146,6 +160,7 @@ class ResidualFunc:
 
         cnn_out_total = []
         bs = question_rep.size(0)
+        # print('bs', bs)
 
         for i in range(bs):
             cnn1_weight_curr = cnn1_weight[i].view(self.dim, self.dim, self.kernel_size, self.kernel_size)
@@ -166,7 +181,6 @@ class ResidualFunc:
             cnn_out_total.append(F.relu(cnn_inp + cnn2_out) )
 
         return torch.cat(cnn_out_total)
-
 
 
 class ConvFunc:
@@ -246,6 +260,7 @@ class SHNMN(nn.Module):
         # alphas and taus from Overleaf Doc.
         self.hard_code_alpha = hard_code_alpha
         self.hard_code_tau = hard_code_tau
+        self.use_module = use_module
 
         num_question_tokens = 3
 
@@ -282,7 +297,6 @@ class SHNMN(nn.Module):
         elif tau_init == 'chain_with_shortcuts_flipped':
             tau_0, tau_1 = _chain_with_shortcuts_tau_flipped()
             print("initializing with chain and shortcuts")
-
         else:
             tau_0, tau_1 = _random_tau(num_modules)
 
@@ -293,9 +307,8 @@ class SHNMN(nn.Module):
             self.tau_0 = self.tau_0.to(device)
             self.tau_1 = self.tau_1.to(device)
         else:
-            self.tau_0   = nn.Parameter(tau_0)
-            self.tau_1   = nn.Parameter(tau_1)
-
+            self.tau_0 = nn.Parameter(tau_0)
+            self.tau_1 = nn.Parameter(tau_1)
 
 
         if use_module == 'conv':
@@ -335,12 +348,98 @@ class SHNMN(nn.Module):
                                                               question_embeddings_2.weight.data],dim=-1)
             self.func = ResidualFunc(module_dim, module_kernel_size)
 
-        else:
+        elif use_module == 'find':
+            # comment if you want find with GRU
             self.question_embeddings = nn.Embedding(len(vocab['question_idx_to_token']), module_dim)
+
+            # decomment if you want to see find with GRU
+            """gru = FiLMGen(encoder_vocab_size=len(vocab['question_idx_to_token']),
+                          wordvec_dim=200,
+                          num_modules=3,
+                          module_dim=module_dim//2,  # gamma and beta in FiLM
+                          taking_context=False,
+                          use_attention=False,
+                          parameter_efficient=True,
+                          gamma_baseline=0)
+            self.question_embeddings = gru  # here we need the gru"""
+            # until here
             self.func = FindModule(module_dim, module_kernel_size)
 
+        elif use_module == 'mixed':
+            embedding_dim_1 = module_dim + (module_dim * module_dim * module_kernel_size * module_kernel_size)
+            embedding_dim_2 = module_dim + (2 * module_dim * module_dim)
+            question_embeddings_a = nn.Embedding(len(vocab['question_idx_to_token']), embedding_dim_1)
+            question_embeddings_b = nn.Embedding(len(vocab['question_idx_to_token']), embedding_dim_1)
+            question_embeddings_2 = nn.Embedding(len(vocab['question_idx_to_token']), embedding_dim_2)
+
+            stdv_1 = 1. / math.sqrt(module_dim * module_kernel_size * module_kernel_size)
+            stdv_2 = 1. / math.sqrt(2 * module_dim)
+
+            question_embeddings_a.weight.data.uniform_(-stdv_1, stdv_1)
+            question_embeddings_b.weight.data.uniform_(-stdv_1, stdv_1)
+            question_embeddings_2.weight.data.uniform_(-stdv_2, stdv_2)
+            self.question_embeddings_res = nn.Embedding(len(vocab['question_idx_to_token']),
+                                                        2 * embedding_dim_1 + embedding_dim_2)
+            self.question_embeddings_res.weight.data = torch.cat(
+                [question_embeddings_a.weight.data, question_embeddings_b.weight.data,
+                 question_embeddings_2.weight.data], dim=-1)
+            self.func_objects = ResidualFunc(module_dim, module_kernel_size)
+
+            self.question_embeddings_find = nn.Embedding(len(vocab['question_idx_to_token']), module_dim)
+            self.func_relation = FindModule(module_dim, module_kernel_size)
+            self.func = [self.func_objects, self.func_relation, self.func_objects]
+
+        elif use_module == 'mixed_find':
+            self.question_embeddings_find = nn.Embedding(len(vocab['question_idx_to_token']), module_dim)
+            self.func_objects = FindModule(module_dim, module_kernel_size)
+            self.func_relation = FindModule(module_dim, module_kernel_size)
+            self.func = [self.func_objects, self.func_relation, self.func_objects]  # find w/o check is
+
+        elif use_module == 'asymmetric_residual':
+            embedding_dim_1 = module_dim + (module_dim * module_dim * module_kernel_size * module_kernel_size)
+            embedding_dim_2 = module_dim + (2 * module_dim * module_dim)
+
+            question_embeddings_a_X = nn.Embedding(len(vocab['question_idx_to_token']), embedding_dim_1)
+            question_embeddings_b_X = nn.Embedding(len(vocab['question_idx_to_token']), embedding_dim_1)
+            question_embeddings_2_X = nn.Embedding(len(vocab['question_idx_to_token']), embedding_dim_2)
+
+            stdv_1 = 1. / math.sqrt(module_dim * module_kernel_size * module_kernel_size)
+            stdv_2 = 1. / math.sqrt(2 * module_dim)
+
+            question_embeddings_a_X.weight.data.uniform_(-stdv_1, stdv_1)
+            question_embeddings_b_X.weight.data.uniform_(-stdv_1, stdv_1)
+            question_embeddings_2_X.weight.data.uniform_(-stdv_2, stdv_2)
+            self.question_embeddings_X = nn.Embedding(len(vocab['question_idx_to_token']),
+                                                    2 * embedding_dim_1 + embedding_dim_2)
+            self.question_embeddings_X.weight.data = torch.cat(
+                [question_embeddings_a_X.weight.data, question_embeddings_b_X.weight.data,
+                 question_embeddings_2_X.weight.data], dim=-1)
+            self.func_X = ResidualFunc(module_dim, module_kernel_size)
+
+            question_embeddings_a_Y = nn.Embedding(len(vocab['question_idx_to_token']), embedding_dim_1)
+            question_embeddings_b_Y = nn.Embedding(len(vocab['question_idx_to_token']), embedding_dim_1)
+            question_embeddings_2_Y = nn.Embedding(len(vocab['question_idx_to_token']), embedding_dim_2)
+
+            stdv_1 = 1. / math.sqrt(module_dim * module_kernel_size * module_kernel_size)
+            stdv_2 = 1. / math.sqrt(2 * module_dim)
+
+            question_embeddings_a_Y.weight.data.uniform_(-stdv_1, stdv_1)
+            question_embeddings_b_Y.weight.data.uniform_(-stdv_1, stdv_1)
+            question_embeddings_2_Y.weight.data.uniform_(-stdv_2, stdv_2)
+            self.question_embeddings_Y = nn.Embedding(len(vocab['question_idx_to_token']),
+                                                      2 * embedding_dim_1 + embedding_dim_2)
+            self.question_embeddings_Y.weight.data = torch.cat(
+                [question_embeddings_a_Y.weight.data, question_embeddings_b_Y.weight.data,
+                 question_embeddings_2_Y.weight.data], dim=-1)
+            self.func_Y_R = ResidualFunc(module_dim, module_kernel_size)
+            self.func = [self.func_X, self.func_Y_R, self.func_Y_R]
 
         # stem for processing the image into a 3D tensor
+        print("stem dimensions")
+        sys.stdout.flush()
+        print(feature_dim[0], stem_dim, module_dim, stem_num_layers, stem_subsample_layers,
+              stem_kernel_size, stem_padding, stem_batchnorm)
+        sys.stdout.flush()
         self.stem = build_stem(feature_dim[0], stem_dim, module_dim,
                    num_layers=stem_num_layers,
                    subsample_layers=stem_subsample_layers,
@@ -349,20 +448,37 @@ class SHNMN(nn.Module):
                    with_batchnorm=stem_batchnorm)
 
         tmp = self.stem(Variable(torch.zeros([1, feature_dim[0], feature_dim[1], feature_dim[2]])))
+
+        print("feature dims")
+        sys.stdout.flush()
+        print(feature_dim[0], feature_dim[1], feature_dim[2])
+        sys.stdout.flush()
+        print("tmp dims")
+        sys.stdout.flush()
+        print(tmp.shape)
+        sys.stdout.flush()
         module_H = tmp.size(2)
         module_W = tmp.size(3)
+        print(module_H, module_W)
+        sys.stdout.flush()
         num_answers = len(vocab['answer_idx_to_token'])
         self.classifier = build_classifier(module_dim, module_H, module_W, num_answers,
                   classifier_fc_layers,
                   classifier_proj_dim,
                   classifier_downsample,
                   with_batchnorm=classifier_batchnorm)
+        print("classifier dimensions")
+        sys.stdout.flush()
+        print(module_dim, module_H, module_W, num_answers, classifier_fc_layers,
+              classifier_proj_dim, classifier_downsample, classifier_batchnorm)
+        sys.stdout.flush()
 
         self.model_type = model_type
         self.use_module = use_module
         p = model_bernoulli
         tree_odds = -numpy.log((1 - p) / p)
         self.tree_odds = nn.Parameter(torch.Tensor([tree_odds]))
+
 
 
     def forward_hard(self, image, question):
@@ -396,12 +512,28 @@ class SHNMN(nn.Module):
 
 
     def forward_soft(self, image, question):
-        question = self.question_embeddings(question)
-        stemmed_img = self.stem(image).unsqueeze(1) # B x 1 x C x H x W
+        stemmed_img = self.stem(image).unsqueeze(1)  # B x 1 x C x H x W
+
+        if self.use_module == 'mixed':
+            question = [self.question_embeddings_res(question[:, 0]),
+                        self.question_embeddings_find(question[:, 1]),
+                        self.question_embeddings_res(question[:, 2])]
+
+        elif self.use_module == 'mixed_find':
+            question = [self.question_embeddings_find(question[:, i_]) for i_ in range(3)]
+
+        elif self.use_module == 'asymmetric_residual':
+            question = [self.question_embeddings_X(question[:, 0]),
+                        self.question_embeddings_Y(question[:, 1]),
+                        self.question_embeddings_Y(question[:, 2])]
+        else:
+            question = self.question_embeddings(question)
 
         self.h = _shnmn_func(question, stemmed_img, self.num_modules,
-                              self.alpha, self.tau_0, self.tau_1, self.func)
+                             self.alpha, self.tau_0, self.tau_1, self.func)
+
         h_final = self.h[:, -1, :, :, :]
+
         return self.classifier(h_final)
 
     def forward(self, image, question):

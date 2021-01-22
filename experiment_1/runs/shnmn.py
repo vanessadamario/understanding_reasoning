@@ -1,3 +1,4 @@
+import sys
 import numpy
 import math
 import torch
@@ -6,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from runs.layers import build_stem, build_classifier
+from runs.data_attribute_random import map_question_idx_to_attribute_category as map_
 # from vr.models.layers import init_modules, ResidualBlock, SimpleVisualBlock, GlobalAveragePool, Flatten
 # from vr.models.layers import build_classifier, build_stem, ConcatBlock
 # import vr.programs
@@ -16,6 +18,7 @@ from functools import partial
 
 # for one object we do not need to have tau and alpha as tensors
 # of the original shape
+
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -79,6 +82,7 @@ def correct_alpha_init_xyr(alpha):
 
     return alpha
 
+
 def correct_alpha_init_rxy(alpha, use_stopwords=True):
     alpha.zero_()
     alpha[0][1] = 100
@@ -86,6 +90,7 @@ def correct_alpha_init_rxy(alpha, use_stopwords=True):
     alpha[2][2] = 100
 
     return alpha
+
 
 def correct_alpha_init_xry(alpha, use_stopwords=True):
     alpha.zero_()
@@ -106,8 +111,6 @@ def _shnmn_func(question, img, num_modules, alpha, tau_0, tau_1, func):
 
     sentinel = torch.zeros_like(img)  # B x 1 x C x H x W
     h_prev = torch.cat([sentinel, img], dim=1)  # B x 2 x C x H x W
-    print("sentinel shape", sentinel.shape)
-    print("h prev", h_prev.shape)
 
     if num_modules == 3:
         for i in range(num_modules):
@@ -121,7 +124,7 @@ def _shnmn_func(question, img, num_modules, alpha, tau_0, tau_1, func):
                     question_rep = question[question_indexes[i]]
                     func_ = func[question_indexes[i]]
             else:
-                question_rep = torch.sum(alpha_curr.view(1,-1,1)*question, dim=1) #(B,D)
+                question_rep = torch.sum(alpha_curr.view(1,-1,1)*question, dim=1)  # (B,D)
             # B x C x H x W
 
             lhs_rep = torch.sum((tau_0_curr.view(1, (i+2), 1, 1, 1))*h_prev, dim=1)
@@ -144,10 +147,13 @@ def _shnmn_func(question, img, num_modules, alpha, tau_0, tau_1, func):
         # B x C x H x W
         rhs_rep = torch.squeeze(img)  # torch.sum((tau_1.view(1, 3, 1, 1, 1)) * h_prev, dim=1)
         question_rep = question
-        # print("shapes")
-        # print(lhs_rep.shape, rhs_rep.shape, question_rep.shape)
-        h_prev = func(question_rep, lhs_rep, rhs_rep)  # B x C x H x W  # here it breaks
-        # print("unsqueeze", torch.unsqueeze(h_prev, dim=1).shape)
+        # TODO: here you need to change depending if the function is a
+        # list or single object
+        if type(func) == list:
+            h_prev = torch.stack([f_(q_.unsqueeze(0), l_.unsqueeze(0), r_.unsqueeze(0))
+                                  for f_, q_, l_, r_ in zip(func, question_rep, lhs_rep, rhs_rep)])
+        else:
+            h_prev = func(question_rep, lhs_rep, rhs_rep)
     return torch.unsqueeze(h_prev, dim=1)
 
 
@@ -157,10 +163,10 @@ class FindModule(nn.Module):
         self.dim = dim
         self.kernel_size = kernel_size
         self.conv_1 = nn.Conv2d(2*dim, dim, kernel_size=1, padding=0)
-        self.conv_2 = nn.Conv2d(dim, dim, kernel_size=kernel_size, padding = kernel_size // 2)
+        self.conv_2 = nn.Conv2d(dim, dim, kernel_size=kernel_size, padding=kernel_size // 2)
 
     def forward(self, question_rep, lhs_rep, rhs_rep):
-        out = F.relu(self.conv_1(torch.cat([lhs_rep, rhs_rep], 1))) # concat along depth
+        out = F.relu(self.conv_1(torch.cat([lhs_rep, rhs_rep], 1)))  # concat along depth
         question_rep = question_rep.view(-1, self.dim, 1, 1)
         return F.relu(self.conv_2(out*question_rep))
 
@@ -191,7 +197,6 @@ class ResidualFunc:
 
         cnn_out_total = []
         bs = question_rep.size(0)
-        print('bs', bs)
 
         for i in range(bs):
             cnn1_weight_curr = cnn1_weight[i].view(self.dim, self.dim, self.kernel_size, self.kernel_size)
@@ -261,6 +266,7 @@ INITS = {'xavier_uniform': xavier_uniform,
          'correct_rxy': correct_alpha_init_rxy,
          'single': single_alpha}
 
+
 class SHNMN(nn.Module):
     def __init__(self,
         vocab,
@@ -275,7 +281,8 @@ class SHNMN(nn.Module):
         stem_batchnorm,
         classifier_fc_layers,
         classifier_proj_dim,
-        classifier_downsample,classifier_batchnorm,
+        classifier_downsample,
+        classifier_batchnorm,
         num_modules,
         hard_code_alpha=False,
         hard_code_tau=False,
@@ -285,6 +292,9 @@ class SHNMN(nn.Module):
         model_bernoulli=0.5,
         use_module = 'conv',
         use_stopwords = True,
+        separated_stem=False,
+        separated_module=False,
+        separated_classifier=False,
         **kwargs):
 
         super().__init__()
@@ -293,8 +303,22 @@ class SHNMN(nn.Module):
         self.hard_code_alpha = hard_code_alpha
         self.hard_code_tau = hard_code_tau
         self.use_module = use_module
+        self.separated_stem = separated_stem
+        self.separated_module = separated_module
+        self.separated_classifier = separated_classifier
+        if self.separated_stem:
+            # if the specialization is at the beginning
+            # we will have it in all the architecture
+            self.separated_module = True
+            self.separated_classifier = True
+
+        if self.use_module == "find":
+            self.func_ = map_
+        else:
+            self.func_ = lambda x: x
 
         num_question_tokens = 3
+        len_embedding = len(vocab["question_token_to_idx"])
 
         if alpha_init.startswith('correct'):
             print('using correct initialization')
@@ -303,7 +327,6 @@ class SHNMN(nn.Module):
             alpha = INITS[alpha_init](torch.Tensor(num_modules, num_question_tokens), 1)
         elif alpha_init == 'single':
             alpha = INITS[alpha_init](torch.Tensor(num_modules, 1))
-            print(alpha)
         else:
             alpha = INITS[alpha_init](torch.Tensor(num_modules, num_question_tokens),1)
 
@@ -382,6 +405,19 @@ class SHNMN(nn.Module):
             self.question_embeddings.weight.data = torch.cat([question_embeddings_a.weight.data, question_embeddings_b.weight.data,
                                                               question_embeddings_2.weight.data],dim=-1)
             self.func = ResidualFunc(module_dim, module_kernel_size)
+
+        # TODO new code
+        # TODO elif use_module == "find" and self.separated_module:
+            # TODO self.func = nn.ModuleDict({str(k_): FindModule(module_dim, module_kernel_size) for k_ in range(4)})
+            # TODO self.question_embedding = nn.Embedding(len(vocab["question_idx_to_token"]), module_dim)
+
+        # TODO delete this
+        # elif use_module == "find" and self.separated_stem: old version
+        elif use_module == "find" and self.separated_module:
+            #     self.question_embeddings = nn.ModuleDict # something
+            self.func = nn.ModuleDict({str(k_): FindModule(module_dim, module_kernel_size) for k_ in range(4)})
+            self.question_embeddings = nn.Embedding(len(vocab['question_idx_to_token']), module_dim)
+            # hard-coded four attributes
 
         elif use_module == 'find':
             # comment if you want find with GRU
@@ -471,24 +507,51 @@ class SHNMN(nn.Module):
 
         # stem for processing the image into a 3D tensor
         # print(feature_dim, stem_dim, module_dim, stem_num_layers)
-        self.stem = build_stem(feature_dim[0], stem_dim, module_dim,
-                   num_layers=stem_num_layers,
-                   subsample_layers=stem_subsample_layers,
-                   kernel_size=stem_kernel_size,
-                   padding=stem_padding,
-                   with_batchnorm=stem_batchnorm)
+        if self.separated_stem:
+            self.stem = nn.ModuleDict({str(self.func_(qv_)): build_stem(feature_dim[0], stem_dim, module_dim,
+                                                                        num_layers=stem_num_layers,
+                                                                        subsample_layers=stem_subsample_layers,
+                                                                        kernel_size=stem_kernel_size,
+                                                                        padding=stem_padding,
+                                                                        with_batchnorm=stem_batchnorm)
+                                                             for qv_ in vocab["question_token_to_idx"].values()})
+            rnd_key = str(self.func_(list(vocab["question_token_to_idx"].values())[0]))
+            tmp = (self.stem[rnd_key])(Variable(torch.zeros([1, feature_dim[0],
+                                                             feature_dim[1],
+                                                             feature_dim[2]])))
 
-        tmp = self.stem(Variable(torch.zeros([1, feature_dim[0], feature_dim[1], feature_dim[2]])))
+            # four different find modules when separated stem
+            # we need to see how many elements we have per attribute family and generate
+
+        else:
+            self.stem = build_stem(feature_dim[0], stem_dim, module_dim,
+                                   num_layers=stem_num_layers,
+                                   subsample_layers=stem_subsample_layers,
+                                   kernel_size=stem_kernel_size,
+                                   padding=stem_padding,
+                                   with_batchnorm=stem_batchnorm)
+            tmp = self.stem(Variable(torch.zeros([1, feature_dim[0],
+                                                  feature_dim[1],
+                                                  feature_dim[2]])))
         module_H = tmp.size(2)
         module_W = tmp.size(3)
         num_answers = len(vocab['answer_idx_to_token'])
-        self.classifier = build_classifier(module_dim, module_H, module_W, num_answers,
-                  classifier_fc_layers,
-                  classifier_proj_dim,
-                  classifier_downsample,
-                  with_batchnorm=classifier_batchnorm)
-        # print("CLASSIFIER")
 
+        # old version: if self.separated_stem:
+        if self.separated_classifier:
+            self.classifier = nn.ModuleDict({str(self.func_(qv_)): build_classifier(module_dim, module_H, module_W, num_answers,
+                                                                                    classifier_fc_layers,
+                                                                                    classifier_proj_dim,
+                                                                                    classifier_downsample,
+                                                                                    with_batchnorm=classifier_batchnorm).to(device)
+                                                                   for qv_ in vocab["question_token_to_idx"].values()})
+
+        else:
+            self.classifier = build_classifier(module_dim, module_H, module_W, num_answers,
+                                               classifier_fc_layers,
+                                               classifier_proj_dim,
+                                               classifier_downsample,
+                                               with_batchnorm=classifier_batchnorm)
         self.model_type = model_type
         self.use_module = use_module
         p = model_bernoulli
@@ -523,10 +586,26 @@ class SHNMN(nn.Module):
         probs_mixture = (1 - eps) * probs_mixture + eps
         return torch.log(probs_mixture)
 
-
     def forward_soft(self, image, question):
-        stemmed_img = self.stem(image).unsqueeze(1)  # B x 1 x C x H x W
-        # print("image size after stem", stemmed_img.shape)
+        # the question must drive the stem to use
+        question_copy = torch.clone(question)
+
+        if self.separated_stem:
+            # to.(device) commented
+            # print("\nSHAPES")
+            # print(image[0].shape)
+            # print(image[0].unsqueeze(0).shape)
+            # print(question[0])
+            # print(self.stem[str(self.func_(int(question[0])))](image[0].unsqueeze(0)).shape)
+            stemmed_img = torch.cat([(self.stem[str(self.func_(int(qv_)))](img.unsqueeze(0))).unsqueeze(1)
+                                     for img, qv_ in zip(image, question)])
+            # print(stemmed_img.shape)
+        else:  # separated_stem is False (original code)
+            stemmed_img = self.stem(image).unsqueeze(1)  # B x 1 x C x H x W
+        # print("stemmed image shape: ", stemmed_img.shape)
+
+        if self.use_module == "find" and self.separated_module:
+            func = [self.func[str(self.func_(int(q_)))] for q_ in question_copy]
 
         if self.use_module == 'mixed':
             question = [self.question_embeddings_res(question[:, 0]),
@@ -542,13 +621,33 @@ class SHNMN(nn.Module):
                         self.question_embeddings_Y(question[:, 2])]
         else:
             question = self.question_embeddings(question)
-
-        self.h = _shnmn_func(question, stemmed_img, self.num_modules,
-                             self.alpha, self.tau_0, self.tau_1, self.func)
+        # print(question)
+        # here depending on the question, the self.func we call is different
+        # old if self.separated_stem and self.use_module == "find":
+        if self.separated_module and self.use_module == "find":
+            self.h = _shnmn_func(question, stemmed_img, self.num_modules,
+                                 self.alpha, self.tau_0, self.tau_1, func)
+        else:  # residual, or find wo separated_module
+            self.h = _shnmn_func(question, stemmed_img, self.num_modules,
+                                 self.alpha, self.tau_0, self.tau_1, self.func)
+        # print("self.h shape", self.h.shape)
+        # print("\nResidual type of module")
         h_final = self.h[:, -1, :, :, :]
-        # print("h final shape", h_final.shape)
+        # print("shape h_final", h_final.shape)
 
-        return self.classifier(h_final)
+        # if self.separated_stem:  # TODO if self.separated_classifier
+        if self.separated_classifier:
+            if self.use_module == "find":
+                classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_])
+                                               for i_, qv_ in enumerate(question_copy)])
+            else:  # residual option
+                # print(h_final[0].unsqueeze(0).shape)
+                classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_].unsqueeze(0))
+                                               for i_, qv_ in enumerate(question_copy)])
+        else:
+            classifier_output = self.classifier(h_final)
+        # print("classifier output shape", classifier_output.shape)
+        return classifier_output
 
     def forward(self, image, question):
         if self.model_type == 'hard':

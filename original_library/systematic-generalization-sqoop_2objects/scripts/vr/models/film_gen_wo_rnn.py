@@ -29,7 +29,7 @@ class FiLMGen(nn.Module):
       rnn_dropout=0,
       output_batchnorm=False,
       bidirectional=False,
-      encoder_type='gru',
+      encoder_type='gru',  # if this is 'null'
       decoder_type='linear',
       gamma_option='linear',
       gamma_baseline=1,
@@ -91,45 +91,47 @@ class FiLMGen(nn.Module):
             self.cond_feat_size = 4 * self.module_dim + 2 * self.num_modules
 
         self.encoder_embed = nn.Embedding(encoder_vocab_size, wordvec_dim)
-        self.encoder_rnn = init_rnn(self.encoder_type, wordvec_dim, hidden_dim, rnn_num_layers,
-                                    dropout=rnn_dropout, bidirectional=self.bidirectional)
-        self.decoder_rnn = init_rnn(self.decoder_type, hidden_dim, hidden_dim, rnn_num_layers,
-                                    dropout=rnn_dropout, bidirectional=self.bidirectional)
 
-        if self.taking_context:
-            self.decoder_linear = None #nn.Linear(2 * hidden_dim, hidden_dim)
-            for n, p in self.encoder_rnn.named_parameters():
-                if n.startswith('weight'): xavier_uniform_(p)
-                elif n.startswith('bias'): constant_(p, 0.)
-        else:
-            self.decoder_linear = nn.Linear(hidden_dim * self.num_dir, self.num_modules * self.cond_feat_size)
+        if encoder_type != 'null':
+            self.encoder_rnn = init_rnn(self.encoder_type, wordvec_dim, hidden_dim, rnn_num_layers,
+                                       dropout=rnn_dropout, bidirectional=self.bidirectional)
+            self.decoder_rnn = init_rnn(self.decoder_type, hidden_dim, hidden_dim, rnn_num_layers,
+                                        dropout=rnn_dropout, bidirectional=self.bidirectional)
 
-        if self.use_attention:
-            # Florian Strub used Tanh here, but let's use identity to make this model
-            # closer to the baseline film version
-            #Need to change this if we want a different mechanism to compute attention weights
-            attention_dim = self.module_dim
-            self.context2key = nn.Linear(hidden_dim * self.num_dir, self.module_dim)
-            # to transform control vector to film coefficients
-            self.last_vector2key = []
-            self.decoders_att = []
-            for i in range(num_modules):
-                mod = nn.Linear(hidden_dim * self.num_dir, attention_dim)
-                self.add_module("last_vector2key{}".format(i), mod)
-                self.last_vector2key.append(mod)
-                mod = nn.Linear(hidden_dim * self.num_dir, 2*self.module_dim)
-                self.add_module("decoders_att{}".format(i), mod)
-                self.decoders_att.append(mod)
+            if self.taking_context:
+                self.decoder_linear = None #nn.Linear(2 * hidden_dim, hidden_dim)
+                for n, p in self.encoder_rnn.named_parameters():
+                    if n.startswith('weight'): xavier_uniform_(p)
+                    elif n.startswith('bias'): constant_(p, 0.)
+            else:
+                self.decoder_linear = nn.Linear(hidden_dim * self.num_dir, self.num_modules * self.cond_feat_size)
 
-        if self.output_batchnorm:
-            self.output_bn = nn.BatchNorm1d(self.cond_feat_size, affine=True)
+            if self.use_attention:
+                # Florian Strub used Tanh here, but let's use identity to make this model
+                # closer to the baseline film version
+                #Need to change this if we want a different mechanism to compute attention weights
+                attention_dim = self.module_dim
+                self.context2key = nn.Linear(hidden_dim * self.num_dir, self.module_dim)
+                # to transform control vector to film coefficients
+                self.last_vector2key = []
+                self.decoders_att = []
+                for i in range(num_modules):
+                    mod = nn.Linear(hidden_dim * self.num_dir, attention_dim)
+                    self.add_module("last_vector2key{}".format(i), mod)
+                    self.last_vector2key.append(mod)
+                    mod = nn.Linear(hidden_dim * self.num_dir, 2*self.module_dim)
+                    self.add_module("decoders_att{}".format(i), mod)
+                    self.decoders_att.append(mod)
 
-        init_modules(self.modules())
-        if embedding_uniform_boundary > 0.:
-            uniform_(self.encoder_embed.weight, -1.*embedding_uniform_boundary, embedding_uniform_boundary)
+            if self.output_batchnorm:
+                self.output_bn = nn.BatchNorm1d(self.cond_feat_size, affine=True)
 
-        # The attention scores will be saved here if the attention is used.
-        self.scores = None
+            init_modules(self.modules())
+            if embedding_uniform_boundary > 0.:
+                uniform_(self.encoder_embed.weight, -1.*embedding_uniform_boundary, embedding_uniform_boundary)
+
+            # The attention scores will be saved here if the attention is used.
+            self.scores = None
 
     def expand_encoder_vocab(self, token_to_idx, word2vec=None, std=0.01):
         expand_embedding_vocab(self.encoder_embed, token_to_idx,
@@ -284,6 +286,10 @@ class FiLMGen(nn.Module):
     def forward(self, x, isTest=False):
         if self.debug_every <= -2:
             pdb.set_trace()
+
+        if self.encoder_type == 'null' and (self.taking_context and not self.use_attention):
+            return self.encoder_embed(x)
+
         encoded, whole_context, last_vector, mask = self.encoder(x, isTest=isTest)
 
         if self.taking_context and not self.use_attention:

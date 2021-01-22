@@ -23,6 +23,67 @@ for lhs_, n_ in zip(lhs_lst, n_per_lhs_lst):
     data_name[5][lhs_] = 'sqoop-variety_%i-repeats_%i' % (lhs_, n_)
 
 
+def retrieve_id_repeated_experiments(slurm_id=None, path_model='.', args=None):
+    """ We can pass the slurm_id,
+    or alternatively the dictionary defining the experiments.
+    ----------------
+    Parameters
+        slurm_id: str, slurm id from which we extract the hyperparameters
+        path_model: str, root path to the files
+        args: dict, containing the keys for the experiment
+    ----------------
+    Returns
+        lst_equal_files: list, list of slurm id
+    """
+
+    json_files = [f_ for f_ in os.listdir(path_model) if f_.endswith('.json')]
+    lst_equal_files = []
+
+    if args is None:
+        model_json = json.load(open(join(path_model, slurm_id + '.pt.json'), 'rb'))
+
+        dct = model_json['args']
+        del dct['checkpoint_path']
+
+        for json_f in json_files:  # list of candidate slurmids.pt.json
+            try:
+                loaded_file = json.load(open(join(path_model, json_f), 'rb'))
+                equal = True
+                dct_comparison = loaded_file['args']
+                del dct_comparison['checkpoint_path']
+
+                if len(dct_comparison) == len(dct):
+                    for (k_, i_) in dct.items():
+                        if i_ != dct_comparison[k_]:
+                            equal = False
+                            break  # we pass to the new json
+                    if equal:
+                        lst_equal_files.append(json_f)
+                else:
+                    continue
+
+            except:
+                continue
+        return [f_.split('.')[0] for f_ in lst_equal_files]
+
+    else:
+        lst_equal_files = []
+        for json_f in json_files:  # list of candidate slurmids.pt.json
+            try:
+                loaded_args = json.load(open(join(path_model, json_f), 'rb'))['args']
+                equal = True
+                for (key_, item_) in args.items():
+                    if loaded_args[key_] != item_:
+                        equal = False
+                        break
+                if equal:
+                    lst_equal_files.append(json_f)
+            except:
+                continue
+
+        return lst_equal_files
+
+
 def load_data_(data_path, file_str='test_in_sample_2'):
     """ Load dataset and return a list of features, questions, and answers
     over which we can iterate

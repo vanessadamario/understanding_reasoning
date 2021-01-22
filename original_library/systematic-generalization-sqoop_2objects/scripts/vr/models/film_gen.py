@@ -38,11 +38,9 @@ class FiLMGen(nn.Module):
       module_dim=128,
       parameter_efficient=False,
       debug_every=float('inf'),
-
       taking_context=False,
       variational_embedding_dropout=0.,
       embedding_uniform_boundary=0.,
-
       use_attention=False,
     ):
         super(FiLMGen, self).__init__()
@@ -74,59 +72,88 @@ class FiLMGen(nn.Module):
 
         self.variational_embedding_dropout = variational_embedding_dropout
 
-        if self.bidirectional: # and not self.taking_context:
+        if self.bidirectional:  # and not self.taking_context:
             if decoder_type != 'linear':
                 raise(NotImplementedError)
             hidden_dim = (int) (hidden_dim / self.num_dir)
 
         self.func_list = {
             'linear': None,
-          'sigmoid': F.sigmoid,
-          'tanh': F.tanh,
-          'exp': torch.exp,
+            'sigmoid': F.sigmoid,
+            'tanh': F.tanh,
+            'exp': torch.exp,
         }
 
-        self.cond_feat_size = 2 * self.module_dim * self.module_num_layers  # FiLM params per ResBlock
-        if not parameter_efficient:  # parameter_efficient=False only used to load older trained models
-            self.cond_feat_size = 4 * self.module_dim + 2 * self.num_modules
+        print("ENCODER TYPE", encoder_type)
 
-        self.encoder_embed = nn.Embedding(encoder_vocab_size, wordvec_dim)
-        self.encoder_rnn = init_rnn(self.encoder_type, wordvec_dim, hidden_dim, rnn_num_layers,
-                                    dropout=rnn_dropout, bidirectional=self.bidirectional)
-        self.decoder_rnn = init_rnn(self.decoder_type, hidden_dim, hidden_dim, rnn_num_layers,
-                                    dropout=rnn_dropout, bidirectional=self.bidirectional)
+        if self.encoder_type != 'null':
+            self.cond_feat_size = 2 * self.module_dim * self.module_num_layers  # FiLM params per ResBlock
+            if not parameter_efficient:  # parameter_efficient=False only used to load older trained models
+                self.cond_feat_size = 4 * self.module_dim + 2 * self.num_modules
 
-        if self.taking_context:
-            self.decoder_linear = None #nn.Linear(2 * hidden_dim, hidden_dim)
-            for n, p in self.encoder_rnn.named_parameters():
-                if n.startswith('weight'): xavier_uniform_(p)
-                elif n.startswith('bias'): constant_(p, 0.)
+            self.encoder_embed = nn.Embedding(encoder_vocab_size, wordvec_dim)
+            self.encoder_rnn = init_rnn(self.encoder_type, wordvec_dim, hidden_dim, rnn_num_layers,
+                                        dropout=rnn_dropout, bidirectional=self.bidirectional)
+            self.decoder_rnn = init_rnn(self.decoder_type, hidden_dim, hidden_dim, rnn_num_layers,
+                                        dropout=rnn_dropout, bidirectional=self.bidirectional)
+
+            if self.taking_context:
+                self.decoder_linear = None #nn.Linear(2 * hidden_dim, hidden_dim)
+                for n, p in self.encoder_rnn.named_parameters():
+                    if n.startswith('weight'): xavier_uniform_(p)
+                    elif n.startswith('bias'): constant_(p, 0.)
+            else:
+                self.decoder_linear = nn.Linear(hidden_dim * self.num_dir, self.num_modules * self.cond_feat_size)
+
+            if self.use_attention:
+                # Florian Strub used Tanh here, but let's use identity to make this model
+                # closer to the baseline film version
+                #Need to change this if we want a different mechanism to compute attention weights
+                attention_dim = self.module_dim
+                self.context2key = nn.Linear(hidden_dim * self.num_dir, self.module_dim)
+                # to transform control vector to film coefficients
+                self.last_vector2key = []
+                self.decoders_att = []
+                for i in range(num_modules):
+                    mod = nn.Linear(hidden_dim * self.num_dir, attention_dim)
+                    self.add_module("last_vector2key{}".format(i), mod)
+                    self.last_vector2key.append(mod)
+                    mod = nn.Linear(hidden_dim * self.num_dir, 2*self.module_dim)
+                    self.add_module("decoders_att{}".format(i), mod)
+                    self.decoders_att.append(mod)
+
+            if self.output_batchnorm:
+                self.output_bn = nn.BatchNorm1d(self.cond_feat_size, affine=True)
+
+            init_modules(self.modules())
+            if embedding_uniform_boundary > 0.:
+                uniform_(self.encoder_embed.weight, -1.*embedding_uniform_boundary, embedding_uniform_boundary)
+
         else:
-            self.decoder_linear = nn.Linear(hidden_dim * self.num_dir, self.num_modules * self.cond_feat_size)
+            self.encoder_embed = nn.Embedding(encoder_vocab_size, wordvec_dim)
+            H = 512
+            self.model_1 = torch.nn.Sequential(
+                torch.nn.Linear(3 * wordvec_dim, H),
+                torch.nn.ReLU(),
+                torch.nn.Linear(H, module_dim)
+            )  # cw1
 
-        if self.use_attention:
-            # Florian Strub used Tanh here, but let's use identity to make this model
-            # closer to the baseline film version
-            #Need to change this if we want a different mechanism to compute attention weights
-            attention_dim = self.module_dim
-            self.context2key = nn.Linear(hidden_dim * self.num_dir, self.module_dim)
-            # to transform control vector to film coefficients
-            self.last_vector2key = []
-            self.decoders_att = []
-            for i in range(num_modules):
-                mod = nn.Linear(hidden_dim * self.num_dir, attention_dim)
-                self.add_module("last_vector2key{}".format(i), mod)
-                self.last_vector2key.append(mod)
-                mod = nn.Linear(hidden_dim * self.num_dir, 2*self.module_dim)
-                self.add_module("decoders_att{}".format(i), mod)
-                self.decoders_att.append(mod)
+            self.model_2 = torch.nn.Sequential(
+                torch.nn.Linear(3 * wordvec_dim, H),
+                torch.nn.ReLU(),
+                torch.nn.Linear(H, module_dim)
+            )  # cw2
 
-        if self.output_batchnorm:
-            self.output_bn = nn.BatchNorm1d(self.cond_feat_size, affine=True)
+            self.model_3 = torch.nn.Sequential(
+                torch.nn.Linear(3 * wordvec_dim, H),
+                torch.nn.ReLU(),
+                torch.nn.Linear(H, module_dim)
+            )  # cw3
 
-        init_modules(self.modules())
-        if embedding_uniform_boundary > 0.:
-            uniform_(self.encoder_embed.weight, -1.*embedding_uniform_boundary, embedding_uniform_boundary)
+            # FOR THE LINEAR MODEL
+            # self.linear_1 = nn.Linear(3 * wordvec_dim, module_dim)  # cw1
+            # self.linear_2 = nn.Linear(3 * wordvec_dim, module_dim)  # cw2
+            # self.linear_3 = nn.Linear(3 * wordvec_dim, module_dim)  # cw3
 
         # The attention scores will be saved here if the attention is used.
         self.scores = None
@@ -172,9 +199,14 @@ class FiLMGen(nn.Module):
         x[x.data == self.NULL] = replace
         return x, idx, mask.to(device)
 
+
     def encoder(self, x, isTest=False):
-        V_in, V_out, D, H, H_full, L, N, T_in, T_out = self.get_dims(x=x)
         x, idx, mask = self.before_rnn(x)  # Tokenized word sequences (questions), end index
+
+        if self.encoder_type != 'null':
+            V_in, V_out, D, H, H_full, L, N, T_in, T_out = self.get_dims(x=x)
+        else:
+            T_in = x.size(1) if x is not None else None
 
         if self.taking_context:
             lengths = torch.LongTensor(idx.shape).fill_(1) + idx.data.cpu()
@@ -185,31 +217,51 @@ class FiLMGen(nn.Module):
                 iperm_idx[v.data] = i
             x = x[perm_idx]
 
-        embed = self.encoder_embed(x)
+        if self.encoder_type != 'null':
 
-        h0 = Variable(torch.zeros(L, N, H).type_as(embed.data))
-        if self.encoder_type == 'lstm':
-            c0 = Variable(torch.zeros(L, N, H).type_as(embed.data))
+            embed = self.encoder_embed(x)
 
-        if self.variational_embedding_dropout > 0. and not isTest:
-            varDrop = torch.Tensor(N, D).fill_(self.variational_embedding_dropout).bernoulli_().to(device)
-            embed = (embed / (1. - self.variational_embedding_dropout)) * varDrop.unsqueeze(1)
+            h0 = Variable(torch.zeros(L, N, H).type_as(embed.data))
+            if self.encoder_type == 'lstm':
+                c0 = Variable(torch.zeros(L, N, H).type_as(embed.data))
 
-        if self.taking_context:
-            embed = pack_padded_sequence(embed, seq_lengths.data.cpu().numpy(), batch_first=True)
+            if self.variational_embedding_dropout > 0. and not isTest:
+                varDrop = torch.Tensor(N, D).fill_(self.variational_embedding_dropout).bernoulli_().to(device)
+                embed = (embed / (1. - self.variational_embedding_dropout)) * varDrop.unsqueeze(1)
 
-        if self.encoder_type == 'lstm':
-            out, (hn, _) = self.encoder_rnn(embed, (h0, c0))
-        elif self.encoder_type == 'gru':
-            out, hn = self.encoder_rnn(embed, h0)
+            if self.taking_context:
+                embed = pack_padded_sequence(embed, seq_lengths.data.cpu().numpy(), batch_first=True)
 
-        hn = hn.transpose(1,0).contiguous()
-        hn = hn.view(hn.shape[0], -1)
+            if self.encoder_type == 'lstm':
+                out, (hn, _) = self.encoder_rnn(embed, (h0, c0))
+            elif self.encoder_type == 'gru':
+                out, hn = self.encoder_rnn(embed, h0)
 
-        # Pull out the hidden state for the last non-null value in each input
+            hn = hn.transpose(1,0).contiguous()
+            hn = hn.view(hn.shape[0], -1)
+
+        else:
+            N = x.size(0)
+            embed = (self.encoder_embed(x)).reshape(N, -1)
+            out = torch.zeros((N, 3, self.module_dim)).to(device)
+            out[:, 0, :] = self.model_1(embed)  # self.linear_1(embed)  # in case of linear
+            out[:, 1, :] = self.model_2(embed)  # self.linear_2(embed)
+            out[:, 2, :] = self.model_3(embed)   # self.linear_3(embed)  # shape: N, module_dim
+            hn = out[:, 2, :]
+
+            # linear transformation
+            # old version
+            # concat_embed = torch.cat(out, dim=0)
+            # out = linear_transf(3, concat_embed)
+            # embed_ = self.embed_hidden(x)
+            # hn = self.last_hidden(embed_)
+            # hn = torch.sum(hn, dim=1)
+            # Pull out the hidden state for the last non-null value in each input
+
         if self.taking_context:
             idx_out = None
-            out, _ = pad_packed_sequence(out, batch_first=True)
+            if self.encoder_type != 'null':
+                out, _ = pad_packed_sequence(out, batch_first=True)
             out = out[iperm_idx]
 
             if out.shape[1] < T_in:
@@ -222,8 +274,7 @@ class FiLMGen(nn.Module):
 
             out = None
             hn = None
-
-
+        # print(out.shape, hn.shape, mask.shape)
         return idx_out, out, hn, mask
 
     def decoder(self, encoded, dims, h0=None, c0=None):
@@ -287,7 +338,7 @@ class FiLMGen(nn.Module):
         encoded, whole_context, last_vector, mask = self.encoder(x, isTest=isTest)
 
         if self.taking_context and not self.use_attention:
-            #whole_context = self.decoder(whole_context, None)
+            #whole_context = self.decoder(whole_context, None)  # MAC
             return (whole_context, last_vector, mask)
 
         if self.use_attention: #make sure taking_context is True as well if we want to use this.

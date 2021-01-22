@@ -26,15 +26,19 @@ from functools import partial
 
 # helper functions
 
+
 # === Definition of modules for NMN === #
 def shape_module(shape):
     return "Shape[{}]".format(shape)
 
+
 def binary_shape_module(shape):
     return "Shape2[{}]".format(shape)
 
+
 def relation_module(relation):
     return "Relate[{}]".format(relation)
+
 
 def unary_relation_module(relation):
     return "Relate1[{}]".format(relation)
@@ -99,19 +103,26 @@ def forward_tree(image, question, stem, vocab, unary_function_modules, binary_fu
     if film_params is not None:
         gammas, betas, coords = film_params
 
-    lhs = question[:, 0]
-    rhs = question[:, 2]
-    rel = question[:, 1]
+    lhs_ = question[:, 0]
+    rhs_ = question[:, 2]
+    rel_ = question[:, 1]
 
     for j in range(question.shape[0]):
+        print("j: ", j)
+        print(lhs_)
+        print(rhs_)
+        print(rel_)
+        lhs_idx = int(lhs_[j])
+        rel_idx = int(rel_[j])
+        rhs_idx = int(rhs_[j])
 
-        lhs_idx = int(lhs[j])
-        rel_idx = int(rel[j])
-        rhs_idx = int(rhs[j])
-
+        # TODO : different from the original code
         lhs = shape_module(vocab['question_idx_to_token'][lhs_idx])
         rel = relation_module(vocab['question_idx_to_token'][rel_idx])
         rhs = shape_module(vocab['question_idx_to_token'][rhs_idx])
+        print(lhs)
+        print(rel)
+        print(rhs)
 
         if gammas is not None:
             rel_lhs = unary_function_modules['film'](h_cur[[j]], gammas[:, lhs_idx, :], betas[:, lhs_idx, :], coords)
@@ -128,7 +139,7 @@ def forward_tree(image, question, stem, vocab, unary_function_modules, binary_fu
     return h_out
 
 
-FUNC_DICT = {'chain1' : forward_chain1, 'chain2' : forward_chain2, 'chain3' : forward_chain3, 'tree' : forward_tree}
+FUNC_DICT = {'chain1': forward_chain1, 'chain2': forward_chain2, 'chain3': forward_chain3, 'tree': forward_tree}
 
 
 class SimpleModuleNet(nn.Module):

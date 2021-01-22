@@ -18,6 +18,7 @@ import os
 import json
 import torch
 import h5py
+from analyze_models import feats_to_image
 import numpy as np
 import PIL
 from torch import nn
@@ -645,6 +646,23 @@ def generate_image_and_question_(pair, sampler, rng, label, rel, num_objects):
                "<END>"]
 
     return scene, question, program, True, 'f'
+
+
+def generate_single_object(vocab):
+    question_words = (vocab)
+    img_lst = []
+
+    for q_ in question_words:
+        obj1 = Object(fontsize=fontsize, angle=0, pos=[image_size//2, image_size//2], shape=q_)
+        scene = draw_scene_([obj1])
+        buffer_ = io.BytesIO()
+        scene.save(buffer_, format='png')
+        buffer_.seek(0)
+        tmp_img = np.frombuffer(buffer_.read(), dtype='uint8')
+        tmp_img = feats_to_image(tmp_img)
+        img_lst.append(tmp_img)
+
+    return img_lst, question_words
 
 
 def gen_data_(obj_pairs, sampler, seed, prefix, num_objects, vocab_dataset,

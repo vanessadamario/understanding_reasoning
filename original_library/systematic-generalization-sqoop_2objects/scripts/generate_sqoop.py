@@ -42,7 +42,9 @@ def relation_module(relation):
 def unary_relation_module(relation):
     return "Relate1[{}]".format(relation)
 
-
+fontsize = 15
+font = 'arial.ttf'
+FONT_OBJECTS = {font_size: ImageFont.truetype(font) for font_size in range(10, 16)}
 
 class Object(object):
     def __init__(self, fontsize, angle=0, pos=None, shape=None):
@@ -236,14 +238,13 @@ class _LongTailSampler(Sampler):
                 return rand_object
 
 
-
 def LongTailSampler(long_tail_dist):
     return partial(_LongTailSampler, long_tail_dist)
 
 
 def gen_data(obj_pairs, sampler, seed, vocab, prefix, question_vocab, program_vocab):
-    num_examples = len(obj_pairs)
 
+    num_examples = len(obj_pairs)
     max_question_len = 3
     if args.program == 'best':
         max_program_len = 7
@@ -253,6 +254,7 @@ def gen_data(obj_pairs, sampler, seed, vocab, prefix, question_vocab, program_vo
         max_program_len = 8
 
     presampled_relations = [sampler.sample_relation() for ex in obj_pairs] # pre-sample relations
+
     with h5py.File(prefix + '_questions.h5', 'w') as dst_questions, h5py.File(prefix + '_features.h5', 'w') as dst_features:
         features_dtype = h5py.special_dtype(vlen=numpy.dtype('uint8'))
         features_dataset = dst_features.create_dataset('features', (num_examples,), dtype=features_dtype)
@@ -262,12 +264,13 @@ def gen_data(obj_pairs, sampler, seed, vocab, prefix, question_vocab, program_vo
         image_idxs_dataset = dst_questions.create_dataset('image_idxs', (num_examples,), dtype=numpy.int64)
 
         i = 0
-        rejection_sampling = {'a' : 0, 'b' : 0, 'c' : 0, 'd' : 0, 'e' : 0, 'f' : 0}
+        rejection_sampling = {'a': 0, 'b': 0, 'c': 0, 'd': 0, 'e': 0, 'f': 0}
 
         # different seeds for train/dev/test
         rng = numpy.random.RandomState(seed)
         before = time.time()
         scenes = []
+
         while i < len(obj_pairs):
             scene, question, program, success, key = generate_image_and_question(
                 obj_pairs[i], sampler, rng, (i % 2) == 0, vocab, presampled_relations[i])
@@ -278,10 +281,10 @@ def gen_data(obj_pairs, sampler, seed, vocab, prefix, question_vocab, program_vo
                 image = draw_scene(scene)
                 image.save(buffer_, format='png')
                 buffer_.seek(0)
-                features_dataset[i]   = numpy.frombuffer(buffer_.read(), dtype='uint8')
-                questions_dataset[i]  = [question_vocab[w] for w in question]
-                programs_dataset[i]   = [program_vocab[w] for w in program]
-                answers_dataset[i]    = int( (i%2) == 0)
+                features_dataset[i] = numpy.frombuffer(buffer_.read(), dtype='uint8')
+                questions_dataset[i] = [question_vocab[w] for w in question]
+                programs_dataset[i] = [program_vocab[w] for w in program]
+                answers_dataset[i] = int((i%2) == 0)
                 image_idxs_dataset[i] = i
 
                 i += 1
@@ -319,12 +322,12 @@ def generate_image_and_question(pair, sampler, rng, label, vocab, rel):
 
         scene = generate_scene(rng, sampler, objects = [obj1, obj2], restrict = True, relation=rel)
         # choose x,y,x', y' st. x r' y, x r y', x' r y holds true
+        if args.num_objects > 2:
+            obj3 = scene[2] #x'
+            obj4 = scene[3] #y'
 
-        obj3 = scene[2] #x'
-        obj4 = scene[3] #y'
-
-        if not obj1.relate(rel, obj4): return None, None, None, False, 'c'
-        elif not obj3.relate(rel, obj2): return None, None, None, False, 'd'
+            if not obj1.relate(rel, obj4): return None, None, None, False, 'c'
+            elif not obj3.relate(rel, obj2): return None, None, None, False, 'd'
 
     color1 = "green"
     color2 = "green"
@@ -459,7 +462,6 @@ def gen_sqoop(vocab):
              'text_token_to_idx': text_token_to_idx},
             dst, indent=2)
 
-
     gen_data(train_pairs, train_sampler, 1, vocab, 'train', question_vocab, program_vocab)
     gen_data(val_pairs, val_sampler, 2, vocab, 'val', question_vocab, program_vocab)
     gen_data(test_pairs, test_sampler, 3, vocab, 'test', question_vocab, program_vocab)
@@ -490,7 +492,6 @@ def gen_image_understanding_test():
     for seen_pair in seen_pairs_uniq:
         seen_pairs += [seen_pair]*args.num_repeats_eval
 
-
     gen_data(seen_pairs, eval_sampler, 4, vocab, 'test_easy', question_vocab, program_vocab)
 
 
@@ -502,8 +503,8 @@ if __name__ == '__main__':
       default='best')
     parser.add_argument('--num-shapes', type=int, default=len(SHAPES))
     parser.add_argument('--num-colors', type=int, default=1)
-    parser.add_argument('--num-objects', type=int, default=5)
-    parser.add_argument('--rhs_variety', type=int, default=len(SHAPES) // 2)
+    parser.add_argument('--num-objects', type=int, default=1)
+    parser.add_argument('--rhs_variety', type=int, default=1) # len(SHAPES) // 2)
     parser.add_argument('--split', type=str, default='systematic', choices=('systematic', 'vanilla'))
     parser.add_argument('--num_repeats', type=int, default=10)
     parser.add_argument('--num_repeats_eval', type=int, default=10)
@@ -517,12 +518,15 @@ if __name__ == '__main__':
     parser.add_argument('--image-size', type=int, default=64)
     parser.add_argument('--min-obj-size', type=int, default=10)
     parser.add_argument('--max-obj-size', type=int, default=15)
+    parser.add_argument('--font-size', type=int, default=15)
     parser.add_argument('--no-rotate', action='store_false', dest='rotate')
     parser.add_argument('--font', default='arial.ttf')
     args = parser.parse_args()
 
+    FONT_OBJECTS = {font_size: ImageFont.truetype(args.font) for font_size in range(10, 16)}
+
     args.level = 'relations'
-    data_full_dir = "%s/sqoop-variety_%d-repeats_%d" %(args.data_dir, args.rhs_variety, args.num_repeats)
+    data_full_dir = "%s/sqoop-1obj-variety_%d-repeats_%d" % (args.data_dir, args.rhs_variety, args.num_repeats)
     if args.split == 'vanilla':
         data_full_dir += "_vanilla"
     if not os.path.exists(data_full_dir):
@@ -531,8 +535,6 @@ if __name__ == '__main__':
     os.chdir(data_full_dir)
     with open('args.txt', 'w') as dst:
         print(args, file=dst)
-
-    FONT_OBJECTS = { font_size : ImageFont.truetype(args.font) for font_size in range(10, 16) }
 
     vocab = SHAPES[:args.num_shapes]
     if args.mode == 'sqoop':

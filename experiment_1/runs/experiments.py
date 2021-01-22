@@ -1,35 +1,49 @@
 import json
 import os
-import numpy as np
 from os.path import join
 
 
-experiment_case_list = [1]
-lr_array = [1e-3, 1e-4]
+experiment_case_list = [0]  # [1] for VQA and binary answers  # case 2, four VQAs per image
+lr_array = [5e-3, 1e-3, 1e-4]
 method_type_list = ["SHNMN"]
 batch_list = [64, 128]
-dataset_dict = {"dataset_name": ["dataset_2"]}
-dict_method_type = {"use_module": "residual",
+dataset_dict = {"dataset_name": ["dataset_15",
+                                 "dataset_16",
+                                 "dataset_17",
+                                 "dataset_18",
+                                 "dataset_19",
+                                 # "dataset_20",
+                                 # "dataset_21",
+                                 # "dataset_22",
+                                 # "dataset_23",
+                                 # "dataset_24"
+                                ]
+                }
+dict_method_type = {"use_module": "find",
                     "model_type": 'soft',
                     "tau_init": "single",
                     "alpha_init": "single",
                     "model_bernoulli": 0.5,
                     "hard_code_alpha": True,
                     "hard_code_tau": True,
-                    "feature_dim": [1, 28, 28],  # input dimensions
+                    "feature_dim": [3, 28, 28],  # input dimensions
                     "module_dim": 64,
                     "module_kernel_size": 3,
                     "stem_dim": 64,
-                    "stem_num_layers": 2,
-                    "stem_subsample_layers": [],
+                    "stem_num_layers": 6,
+                    "stem_subsample_layers": [1, 3],
                     "stem_kernel_size": [3],
                     "stem_padding": None,
-                    "stem_batchnorm": 0,
+                    "stem_batchnorm": 1,
                     "classifier_fc_layers": [1024],
                     "classifier_proj_dim": 512,
-                    "classifier_batchnorm": 0,
+                    "classifier_batchnorm": 1,
                     "classifier_downsample": "maxpoolfull",
-                    "num_modules": 1}
+                    "num_modules": 1,
+                    "separated_stem": False,
+                    "separated_module": False,
+                    "separated_classifier": False
+                    }
 
 
 class OptimizationHyperParameters(object):
@@ -44,7 +58,7 @@ class OptimizationHyperParameters(object):
                  lr_at_plateau=True,  # TODO: not implemented in sysgen
                  reduction_factor=None,  # TODO: not implemented in sysgen
                  validation_check=True,  # TODO: not implemented in sysgen
-                 num_iterations=50000,
+                 num_iterations=200000,
                  sensitive_learning_rate=1e-3,
                  reward_decay=0.9,
                  weight_decay=0.,
@@ -53,7 +67,8 @@ class OptimizationHyperParameters(object):
                  avoid_checkpoint_override=False,
                  record_loss_every=10,
                  checkpoint_every=1000,
-                 time=0):
+                 time=0,
+                 num_val_samples=1000):
         """
         :param learning_rate: float, the initial value for the learning rate.
         :param architecture: str, the architecture types.
@@ -73,6 +88,7 @@ class OptimizationHyperParameters(object):
         :param record_loss_every: number of iterations at which we record the loss
         :param checkpoint_every: save the model every checkpoint_every iterations
         :param time: default 0
+        :param num_val_samples: int, max number of examples in evaluation
         """
         self.learning_rate = learning_rate
         self.architecture = architecture
@@ -91,6 +107,7 @@ class OptimizationHyperParameters(object):
         self.record_loss_every = record_loss_every
         self.checkpoint_every = checkpoint_every
         self.time = time
+        self.num_val_samples = num_val_samples
 
 
 class ArchitectureHyperParameters(object):
@@ -108,9 +125,9 @@ class ArchitectureHyperParameters(object):
                  rnn_num_layers=2,
                  rnn_dropout=0,
                  rnn_attention=True,
-                 module_stem_num_layers=2,
-                 module_stem_subsample_layers=[],  # it must be a list of ints
-                 module_stem_batchnorm=0,
+                 module_stem_num_layers=6,
+                 module_stem_subsample_layers=[1,3],  # it must be a list of ints
+                 module_stem_batchnorm=1,
                  module_dim=128,
                  stem_dim=64,
                  module_residual=1,
@@ -121,8 +138,8 @@ class ArchitectureHyperParameters(object):
                  classifier_proj_dim=512,
                  classifier_downsample='maxpool2',
                  classifier_fc_dims=[1024],
-                 classifier_batchnorm=0,
-                 classifier_dropout=0.
+                 classifier_batchnorm=1,
+                 classifier_dropout=0.,
                  ):
 
         """
@@ -384,7 +401,11 @@ class SHNMNHyperParameters(object):
                  classifier_proj_dim=512,
                  classifier_downsample="maxpoolfull",
                  classifier_batchnorm=0,
-                 num_modules=3):
+                 num_modules=3,
+                 separated_stem=False,
+                 separated_module=True,
+                 separated_classifier=True
+                 ):
         """
         :param shnmn_type: str, choice in ['hard', 'soft']
         :param use_module: str, choice in ['conv', 'find', 'residual', 'mixed',
@@ -396,6 +417,9 @@ class SHNMNHyperParameters(object):
             'uniform', 'correct', 'correct_xry', 'correct_rxy']
         :param hard_code_alpha:
         :param hard_code_tau:
+        :param separated_stem: we want stem to be specialized
+        :param separated_module: this works only for find, if we want to separate some of the representation
+        :param separated_classifier: if true, we will have a number of classifier equal to number of modules
         """
         self.model_type = model_type
         self.use_module = use_module
@@ -418,6 +442,9 @@ class SHNMNHyperParameters(object):
         self.classifier_downsample = classifier_downsample
         self.classifier_batchnorm = classifier_batchnorm
         self.num_modules = num_modules
+        self.separated_stem = separated_stem
+        self.separated_module = separated_module
+        self.separated_classifier = separated_classifier
 
 
 architecture_dict  = {"SHNMN": SHNMNHyperParameters,

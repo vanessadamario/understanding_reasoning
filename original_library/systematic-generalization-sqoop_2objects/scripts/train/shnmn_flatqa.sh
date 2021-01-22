@@ -1,23 +1,25 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH -c 1
-#SBATCH --array=0
-#SBATCH --job-name=chain_lhs1_5obj
-#SBATCH --mem=20GB
-#SBATCH -t 15:30:00
+#SBATCH --array=0-4
+#SBATCH --job-name=mixed_modules
+#SBATCH --mem=30GB
+#SBATCH -t 40:00:00
 #SBATCH --gres=gpu:tesla-k80:1
-#SBATCH --partition=normal
-
+#SBATCH --partition=cbmm
+#SBATCH -D /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/slurm_output
 module add openmind/singularity/3.4.1
 
 singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tensorflow2.simg \
-python /om/user/vanessad/om/user/vanessad/original_library/systematic-generalization-sqoop/scripts/train_model.py \
+python /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/scripts/train_model.py \
   --model_type SHNMN \
+  --checkpoint_path /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop/results/tree_mixed_find/${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}_.pt \
   --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-variety_1-repeats_30000 \
-  --hard_code_tau --tau_init chain --hard_code_alpha --alpha_init correct\
+  --hard_code_tau --tau_init tree --hard_code_alpha --alpha_init correct \
   --feature_dim=3,64,64 \
-  --num_iterations=50000 \
-  --checkpoint_every 1000 \
+  c500000 \
+  --checkpoint_every 500 \
+  --use_module=mixed_find \
   --record_loss_every 10 \
   --num_val_samples 1000 \
   --optimizer Adam \

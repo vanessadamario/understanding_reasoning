@@ -21,7 +21,9 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
 class MAC(nn.Module):
-    """Implementation of the Compositional Attention Networks from: https://openreview.net/pdf?id=S1Euwz-Rb"""
+    """Implementation of the Compositional Attention Networks
+    We exclude here the RNN component.
+    """
     def __init__(self, vocab, feature_dim,
                  stem_num_layers,
                  stem_batchnorm,
@@ -108,8 +110,8 @@ class MAC(nn.Module):
 
         if write_unit == 'original':
             mod = WriteUnit(module_dim,
-                            use_self_attention=self.use_self_attention,
-                            use_memory_gate=self.use_memory_gate)
+                            use_self_attention=self.use_self_attention,  # False
+                            use_memory_gate=self.use_memory_gate)  # False
         elif write_unit == 'gru':
             mod = GRUWriteUnit(module_dim)
         elif write_unit == 'lastread':

@@ -1,10 +1,12 @@
 import os
 from os.path import join
+import sys
 from runs.data_loader import DataTorchLoader
 from runs.train_loop import train_loop
+from runs.train_query_loop import train_query_loop
 
 
-def check_and_train(opt, output_path):
+def check_and_train(opt, output_path, load):
     """ Check if the experiments has already been performed.
     If it is not, train otherwise retrieve the path relative to the experiment.
     :param opt: Experiment instance. It contains the output path for the experiment
@@ -18,7 +20,9 @@ def check_and_train(opt, output_path):
         print("Experiment already trained in " + opt.output_path)
 
     print(output_path)
+    sys.stdout.flush()
     print('check and train', opt.output_path)
+    sys.stdout.flush()
 
     if not os.path.exists(opt.output_path):
         os.makedirs(opt.output_path)
@@ -36,7 +40,11 @@ def check_and_train(opt, output_path):
         break
     valid_loader = DataTorchLoader(opt, split="valid")
     # TODO 2: we need to call the train_loop function
-    train_loop(opt, train_loader, valid_loader)
+    if opt.dataset.experiment_case == 0:
+        train_query_loop(opt, train_loader, valid_loader)
+    # elif opt.dataset.experiment_case == 1:
+    else:
+        train_loop(opt, train_loader, valid_loader, load)
     # here training must happen
     # train_network(opt)
 

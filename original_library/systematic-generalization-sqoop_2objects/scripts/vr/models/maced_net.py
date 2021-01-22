@@ -549,6 +549,8 @@ class ControlUnit(nn.Module):
         scores = self.score_transformer(context * control_question.unsqueeze(1)).squeeze(2)  #NxLxd -> NxLx1 -> NxL
 
         #Eq (c2.2) : softmax
+        print('scores shape')
+        print((torch.exp(scores - scores.max(1, keepdim=True)[0])).shape)
         scores = torch.exp(scores - scores.max(1, keepdim=True)[0]) * mask #mask help to eliminate null tokens
         scores = scores / scores.sum(1, keepdim=True) #NxL
 

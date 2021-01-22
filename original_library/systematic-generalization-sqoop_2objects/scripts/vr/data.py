@@ -26,6 +26,7 @@ def _dataset_to_tensor(dset, mask=None, dtype=None):
     tensor = torch.LongTensor(arr)
     return tensor
 
+
 def _gen_subsample_mask(num, percent=1.0):
     chosen_num = math.floor(num * percent)
     mask = np.full((num,), False)

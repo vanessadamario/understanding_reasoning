@@ -1,12 +1,14 @@
+import sys
 import json
 import torch
 import logging
 import time
+import numpy as np
 from torch.autograd import Variable
 from os.path import join
 import torch.nn.functional as F
 from runs.shnmn import SHNMN
-from runs.utils import load_vocab
+from runs.utils import load_vocab, load_execution_engine
 
 
 # here we need to the the same of the train_loop function
@@ -18,8 +20,18 @@ def get_execution_engine(**kwargs):
     """ Load the model """
     # TODO load_execution_engine
     # consider the case where you want to load
+    # print(kwargs)
+    #     if args.execution_engine_start_from is not None:
+    #         ee, kwargs = vr.utils.load_execution_engine(
+    #             args.execution_engine_start_from, model_type=args.model_type)
+    print("Loading model")
     print(kwargs)
-    ee = SHNMN(**kwargs)
+    if kwargs['load_model']:
+        ee, kwargs = load_execution_engine(join(kwargs['output_path'], 'model'),
+                                           model_type="SHNMN")
+        print(kwargs)
+    else:
+        ee = SHNMN(**kwargs)
     ee.to(device)
     ee.train()
     return ee
@@ -45,7 +57,8 @@ def get_state(m):
     return state
 
 
-def check_accuracy(opt, execution_engine, loader):
+def check_accuracy(opt, execution_engine, loader, test=False):
+    max_n_samples = opt.hyper_opt.num_val_samples if not test else None
     set_mode('eval', [execution_engine])
     num_correct, num_samples = 0, 0
     for batch in loader:
@@ -54,7 +67,6 @@ def check_accuracy(opt, execution_engine, loader):
             questions = questions[0]
         questions_var = questions.to(device)
         feats_var = feats.to(device)
-
         scores = None  # Use this for everything but PG
         if opt.method_type in ['SimpleNMN', 'SHNMN']:
             scores = execution_engine(feats_var, questions_var)
@@ -66,14 +78,22 @@ def check_accuracy(opt, execution_engine, loader):
             num_correct += (preds == answers).sum()
             num_samples += preds.size(0)
 
+        if max_n_samples is not None and num_samples >= max_n_samples:
+            print("We are in the condition to exit")
+            sys.stdout.flush()
+            print(num_samples)
+            sys.stdout.flush()
+            break
+
     set_mode('train', [execution_engine])
+    # print(num_correct)
     acc = float(num_correct) / num_samples
-    print("num check samples", num_samples)
+    # print("num check samples", num_samples)
 
     return acc
 
 
-def train_loop(opt, train_loader, val_loader):
+def train_loop(opt, train_loader, val_loader, load=False):
 
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
     execution_engine, ee_kwargs, ee_optimizer = None, None, None
@@ -87,6 +107,9 @@ def train_loop(opt, train_loader, val_loader):
     }
     kkwargs_exec_engine_ = opt.hyper_method.__dict__
     kkwargs_exec_engine_["vocab"] = vocab
+    kkwargs_exec_engine_["load_model"] = load
+    if load:
+        kkwargs_exec_engine_["output_path"] = opt.output_path
 
     if opt.method_type in ['SHNMN']:
         # TODO load the model if it exists already
@@ -120,6 +143,14 @@ def train_loop(opt, train_loader, val_loader):
     compute_start_time = time.time()
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
 
+    if load:
+        with open(join(opt.output_path, 'model.json'), 'r') as f:
+            checkpoint = json.load(f)
+        for key in list(stats.keys()):
+            if key in checkpoint:
+                stats[key] = checkpoint[key]
+        # stats['model_epoch'] -= 1
+
     t, epoch, reward_moving_average = stats['model_t'], stats['model_epoch'], 0
 
     num_checkpoints = 0
@@ -130,6 +161,7 @@ def train_loop(opt, train_loader, val_loader):
     train_pass_total_time = 0.0
     val_pass_total_time = 0.0
 
+    temp_old = time.time()
     while t < opt.hyper_opt.num_iterations:  # this is the number of steps in tf
         epoch += 1
 
@@ -201,6 +233,20 @@ def train_loop(opt, train_loader, val_loader):
 
             if t % opt.hyper_opt.checkpoint_every == 0:
                 num_checkpoints += 1
+                temp_time = time.time()
+                print("")
+                sys.stdout.flush()
+
+                print("TIME")
+                sys.stdout.flush()
+
+                print(temp_time - temp_old)
+                sys.stdout.flush()
+
+                print("")
+                sys.stdout.flush()
+
+                temp_old = temp_time
                 logger.info('Checking training accuracy ... ')
                 start = time.time()
                 train_acc = check_accuracy(opt, execution_engine, train_loader)
@@ -225,7 +271,7 @@ def train_loop(opt, train_loader, val_loader):
                 stats['val_accs_ts'].append(t)
 
                 ee_state = get_state(execution_engine)
-
+                print("\nSave ee state")
                 stats['model_t'] = t
                 stats['model_epoch'] = epoch
 

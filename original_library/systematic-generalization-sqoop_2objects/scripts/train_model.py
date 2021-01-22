@@ -127,7 +127,7 @@ parser.add_argument('--program_generator_parameter_efficient', default=1, type=i
 parser.add_argument('--rnn_output_batchnorm', default=0, type=int)
 parser.add_argument('--bidirectional', default=0, type=int)
 parser.add_argument('--encoder_type', default='gru', type=str,
-  choices=['linear', 'gru', 'lstm'])
+  choices=['linear', 'gru', 'lstm', 'null'])
 parser.add_argument('--decoder_type', default='linear', type=str,
   choices=['linear', 'gru', 'lstm'])
 parser.add_argument('--gamma_option', default='linear',
@@ -182,14 +182,16 @@ parser.add_argument('--nmn_use_simple_block', default=0, type=int)
 #SHNMN options
 parser.add_argument('--shnmn_type', default='soft', type=str,
         choices=['hard', 'soft'])
-parser.add_argument('--use_module', default='residual', type=str, choices=['conv', 'find', 'residual'])
+parser.add_argument('--use_module', default='residual', type=str, choices=['conv', 'find', 'residual',
+                                                                           'mixed', 'asymmetric_residual',
+                                                                           'mixed_find'])
 # for soft
 parser.add_argument('--tau_init', default='random', type=str,
-        choices=['random', 'tree', 'chain', 'chain_with_shortcuts'])
+        choices=['random', 'tree', 'chain', 'chain_with_shortcuts', 'chain_with_shortcuts_flipped'])
 # for hard
 parser.add_argument('--model_bernoulli', default=0.5, type=float)
 parser.add_argument('--alpha_init', default='uniform', type=str,
-        choices=['xavier_uniform', 'constant', 'uniform', 'correct', 'correct_xry', 'correct_rxy' ])
+        choices=['xavier_uniform', 'constant', 'uniform', 'correct', 'correct_xry', 'correct_rxy'])
 parser.add_argument('--hard_code_alpha', action="store_true")
 # must be used with the soft version
 parser.add_argument('--hard_code_tau', action="store_true")
@@ -425,19 +427,19 @@ def train_loop(args, train_loader, val_loader, valB_loader=None):
     if args.model_type in ['TMAC', 'MAC', 'RTfilm', 'Tfilm', 'FiLM', 'PG', 'PG+EE', 'RelNet', 'ConvLSTM']:
         program_generator, pg_kwargs = get_program_generator(args)
 
-        logger.info('Here is the conditioning network:')
-        logger.info(program_generator)
+        # logger.info('Here is the conditioning network:')
+        # logger.info(program_generator)
     if args.model_type in ['TMAC', 'MAC', 'RTfilm', 'Tfilm', 'FiLM', 'EE', 'PG+EE', 'Hetero', 'SimpleNMN', 'SHNMN', 'RelNet', 'ConvLSTM']:
         execution_engine, ee_kwargs = get_execution_engine(args)
-        logger.info('Here is the conditioned network:')
-        logger.info(execution_engine)
+        # logger.info('Here is the conditioned network:')
+        # logger.info(execution_engine)
     if args.model_type in ['LSTM', 'CNN+LSTM', 'CNN+LSTM+SA']:
         baseline_model, baseline_kwargs = get_baseline_model(args)
         params = baseline_model.parameters()
         if args.baseline_train_only_rnn == 1:
             params = baseline_model.rnn.parameters()
-        logger.info('Here is the baseline model')
-        logger.info(baseline_model)
+        # logger.info('Here is the baseline model')
+        # logger.info(baseline_model)
         baseline_type = args.model_type
 
     if args.allow_resume and os.path.exists(args.checkpoint_path):
@@ -465,22 +467,22 @@ def train_loop(args, train_loader, val_loader, valB_loader=None):
         # separate learning rate for p(model) for the stochastic tree NMN
         base_parameters = []
         sensitive_parameters = []
-        logger.info("PARAMETERS:")
+        # logger.info("PARAMETERS:")
         for name, param in execution_engine.named_parameters():
             if not param.requires_grad:
                 continue
-            logger.info(name)
+            # logger.info(name)
             if name.startswith('tree_odds') or name.startswith('alpha'):
                 sensitive_parameters.append(param)
             else:
                 base_parameters.append(param)
-        logger.info("SENSITIVE PARAMS ARE: {}".format(sensitive_parameters))
-        ee_optimizer = optim_method([{'params' : sensitive_parameters,
-                                      'lr' : args.sensitive_learning_rate,
-                                      'weight_decay': 0.0} ,
-                                     {'params' : base_parameters} ],
-                                    lr=args.learning_rate,
-                                    weight_decay=args.weight_decay)
+        # logger.info("SENSITIVE PARAMS ARE: {}".format(sensitive_parameters))
+        ee_optimizer = optim_method([{'params': sensitive_parameters,
+                                      'lr': args.sensitive_learning_rate,
+                                      'weight_decay': 0.0},
+                                     {'params': base_parameters}],
+                                      lr=args.learning_rate,
+                                      weight_decay=args.weight_decay)
     if baseline_model:
         baseline_optimizer = optim_method(params,
                                           lr=args.learning_rate,
@@ -515,6 +517,8 @@ def train_loop(args, train_loader, val_loader, valB_loader=None):
     val_pass_total_time = 0.0
     valB_pass_total_time = 0.0
     running_loss = 0.0
+
+
     while t < args.num_iterations:
         if (epoch > 0) and (args.time == 1):
             epoch_time = time.time() - epoch_start_time
@@ -527,19 +531,32 @@ def train_loop(args, train_loader, val_loader, valB_loader=None):
         logger.info('Starting epoch %d' % epoch)
 
         batch_start_time = time.time()
+        start__ = batch_start_time
+
         for batch in train_loader:
+            # print('')
+            # print('batch')
+            # print(batch)
+            # print('')
             compute_start_time = time.time()
 
             t += 1
+            # print("\nStart")
+            # sys.stdout.flush()
+            # print("Load batch and start training")
+            # sys.stdout.flush()
+            time_i__ = time.time()
             (questions, _, feats, answers, programs, _) = batch
+            # print('no errors so far')
             if isinstance(questions, list):
                 questions = questions[0]
             questions_var = Variable(questions.to(device))
             feats_var = Variable(feats.to(device))
             answers_var = Variable(answers.to(device))
+            # print("load data: ", time.time()-time_i__)
+            # sys.stdout.flush()
             if programs[0] is not None:
                 programs_var = Variable(programs.to(device))
-
             reward = None
             if args.model_type == 'PG':
                 # Train program generator with ground-truth programs
@@ -678,12 +695,21 @@ def train_loop(args, train_loader, val_loader, valB_loader=None):
             elif args.model_type in ['SimpleNMN', 'SHNMN']:
                 # Train execution engine with ground-truth programs
                 ee_optimizer.zero_grad()
+                # print("zero grad", time.time()-time_i__)
+                # sys.stdout.flush()
                 scores = execution_engine(feats_var, questions_var)
+                # print("scores", time.time() - time_i__)
+                # sys.stdout.flush()
                 if args.shnmn_type == 'hard':
                     tree_loss = loss_fn(execution_engine.tree_scores, answers_var)
                     chain_loss = loss_fn(execution_engine.chain_scores, answers_var)
                 loss = loss_fn(scores, answers_var)
+                # print("compute loss", time.time()-time_i__)
+                # sys.stdout.flush()
                 loss.backward()
+                # print("loss back", time.time()-time_i__)
+                # sys.stdout.flush()
+
                 # record alphas and gradients and p(model) here : DEBUGGING
                 if args.model_type == 'SHNMN' and args.shnmn_type == 'hard':
                     p_tree = F.sigmoid(execution_engine.tree_odds).item()
@@ -702,8 +728,11 @@ def train_loop(args, train_loader, val_loader, valB_loader=None):
                             print('grad_%d: %s' % (i , " ".join(['{:.3f}'.format(float(x)) for x in alphas_i_grad]) ) )
                             stats['alphas_{}'.format(i)].append(alphas_i.tolist())
                             stats['alphas_{}_grad'.format(i)].append(alphas_i_grad.tolist())
-
+                    # print("not hard", time.time() - time_i__)
+                    # sys.stdout.flush()
+                # print("before optimizer", time.time()-time_i__)
                 ee_optimizer.step()
+
             elif args.model_type in ['RelNet', 'ConvLSTM']:
                 question_rep = program_generator(questions_var)
                 scores = execution_engine(feats_var, question_rep)
@@ -716,6 +745,104 @@ def train_loop(args, train_loader, val_loader, valB_loader=None):
                 ee_optimizer.step()
             else:
                 raise ValueError()
+            # time_e__ = time.time()
+            # print("TIME SINGLE BATCH: ")
+            # sys.stdout.flush()
+
+            # print(time_e__ - time_i__)
+            # sys.stdout.flush()
+
+            if t % args.record_loss_every == 0:
+                running_loss += loss.item()
+                avg_loss = running_loss / args.record_loss_every
+                # logger.info("{} {:.5f} {:.5f} {:.5f}".format(t, time.time() - batch_start_time, time.time() - compute_start_time, loss.item()))
+                stats['train_losses'].append(avg_loss)
+                stats['train_losses_ts'].append(t)
+                if reward is not None:
+                    stats['train_rewards'].append(reward.item())
+                running_loss = 0.0
+            else:
+                running_loss += loss.item()
+
+
+            """ if t % args.checkpoint_every == 0:
+                num_checkpoints += 1
+                logger.info('Checking training accuracy ... ')
+                start = time.time()
+                train_acc = check_accuracy(args, program_generator, execution_engine,
+                                           baseline_model, train_loader)
+                train_pass_time = (time.time() - start)
+                train_pass_total_time += train_pass_time
+                logger.info('TRAIN PASS AVG TIME: ' + str(train_pass_total_time / num_checkpoints))
+                logger.info('Train Pass Time      : ' + str(train_pass_time))
+                logger.info('train accuracy is {}'.format(train_acc))
+                logger.info('Checking validation accuracy ...')
+                start = time.time()
+
+
+                val_acc = check_accuracy(args, program_generator, execution_engine,
+                                         baseline_model, val_loader)
+                val_pass_time = (time.time() - start)
+                val_pass_total_time += val_pass_time
+                logger.info('VAL PASS AVG TIME:   ' + str(val_pass_total_time / num_checkpoints))
+                logger.info('Val Pass Time        : ' + str(val_pass_time))
+                logger.info('val accuracy is {}'.format(val_acc))
+                stats['train_accs'].append(train_acc)
+                stats['val_accs'].append(val_acc)
+                stats['val_accs_ts'].append(t)
+
+                if valB_loader:
+                    start=time.time()
+                    valB_acc = check_accuracy(args, program_generator, execution_engine,
+                                              baseline_model, valB_loader)
+                    if args.time == 1:
+                        valB_pass_time = (time.time() - start)
+                        valB_pass_total_time += valB_pass_time
+                        logger.info(colored('VAL B PASS AVG TIME:   ' + str(valB_pass_total_time / num_checkpoints), 'cyan'))
+                        logger.info(colored('Val B Pass Time        : ' + str(valB_pass_time), 'cyan'))
+                    logger.info('val B accuracy is ', valB_acc)
+                    stats['valB_accs'].append(valB_acc)
+                    stats['valB_accs_ts'].append(t)
+
+                pg_state = get_state(program_generator)
+                ee_state = get_state(execution_engine)
+                baseline_state = get_state(baseline_model)
+
+                stats['model_t'] = t
+                stats['model_epoch'] = epoch
+
+                checkpoint = {
+                    'args': args.__dict__,
+                    'program_generator_kwargs': pg_kwargs,
+                    'program_generator_state': pg_state,
+                    'execution_engine_kwargs': ee_kwargs,
+                    'execution_engine_state': ee_state,
+                    'baseline_kwargs': baseline_kwargs,
+                    'baseline_state': baseline_state,
+                    'baseline_type': baseline_type,
+                    'vocab': vocab
+                }
+                for k, v in stats.items():
+                    checkpoint[k] = v
+
+                # Save current model
+                logger.info('Saving checkpoint to %s' % args.checkpoint_path)
+                torch.save(checkpoint, args.checkpoint_path)
+
+                # Save the best model separately
+                if val_acc > stats['best_val_acc']:
+                    logger.info('Saving best so far checkpoint to %s' % (args.checkpoint_path + '.best'))
+                    stats['best_val_acc'] = val_acc
+                    if valB_loader:
+                        stats['bestB_val_acc'] = valB_acc
+                    checkpoint['program_generator_state'] = pg_state
+                    checkpoint['execution_engine_state'] = ee_state
+                    checkpoint['baseline_state'] = baseline_state
+                    torch.save(checkpoint, args.checkpoint_path + '.best')
+
+                # Save training status in a human-readable format
+                del checkpoint['program_generator_state']
+                del checkpoint['execution_engine_state']
 
             if t % args.record_loss_every == 0:
                 running_loss += loss.item()
@@ -727,13 +854,17 @@ def train_loop(args, train_loader, val_loader, valB_loader=None):
                     stats['train_rewards'].append(reward.item())
                 running_loss = 0.0
             else:
-                running_loss += loss.item()
+                running_loss += loss.item()"""
 
 
             if t % args.checkpoint_every == 0:
+                print("\We are in the checkpoint after 1k iterations")
+                sys.stdout.flush()
                 num_checkpoints += 1
                 logger.info('Checking training accuracy ... ')
                 start = time.time()
+                print(start - start__)
+                sys.stdout.flush()
                 train_acc = check_accuracy(args, program_generator, execution_engine,
                                            baseline_model, train_loader)
                 train_pass_time = (time.time() - start)
@@ -812,9 +943,19 @@ def train_loop(args, train_loader, val_loader, valB_loader=None):
                 with open(args.checkpoint_path + '.json', 'w') as f:
                     json.dump(checkpoint, f, indent=2, sort_keys=True)
 
+                start__ = start
             if t == args.num_iterations:
-            # Save the best model separately
+            # Save the best model
                 break
+
+            # batch_start_time = time.time()
+            # del checkpoint['baseline_state']
+            # with open(args.checkpoint_path + '.json', 'w') as f:
+            #     json.dump(checkpoint, f, indent=2, sort_keys=True)
+
+            # if t == args.num_iterations:
+            # Save the best model separately
+            #     break
 
             batch_start_time = time.time()
 
@@ -1195,6 +1336,7 @@ def check_accuracy(args, program_generator, execution_engine, baseline_model, lo
 
         questions_var = questions.to(device)
         feats_var = feats.to(device)
+        print("size questions per batch: ", questions_var.shape)
         if programs[0] is not None:
             programs_var = programs.to(device)
 
@@ -1242,6 +1384,10 @@ def check_accuracy(args, program_generator, execution_engine, baseline_model, lo
             num_samples += preds.size(0)
 
         if args.num_val_samples is not None and num_samples >= args.num_val_samples:
+            print("We are in the condition")
+            sys.stdout.flush()
+            print(num_samples)
+            sys.stdout.flush()
             break
 
     set_mode('train', [program_generator, execution_engine, baseline_model])

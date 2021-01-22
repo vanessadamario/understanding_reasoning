@@ -1,21 +1,24 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH -c 1
-#SBATCH --array=0
-#SBATCH --job-name=MAC_8lhs
-#SBATCH --mem=12GB
-#SBATCH -t 20:30:00
+#SBATCH --array=0-4
+#SBATCH --job-name=mac1lhs_seq
+#SBATCH --mem=20GB
+#SBATCH -t 30:00:00
 #SBATCH --gres=gpu:tesla-k80:1
-#SBATCH --partition=normal
+#SBATCH --partition=cbmm
+#SBATCH -D /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/slurm_output
+
 
 module add openmind/singularity/3.4.1
 
 singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tensorflow2.simg \
-python /om/user/vanessad/om/user/vanessad/original_library/systematic-generalization-sqoop/scripts/train_model.py \
+python /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/scripts/train_model.py \
   --feature_dim=3,64,64 \
+  --checkpoint_path /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/results/mac_wo_lstm/lhs1/${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}.pt \
   --model_type MAC \
-  --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-variety_8-repeats_3750 \
-  --num_iterations 100000 \
+  --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-no_crowding-variety_1-repeats_30000 \
+  --num_iterations 200000 \
   --checkpoint_every 1000 \
   --record_loss_every 10 \
   --num_val_samples 1000 \
@@ -40,7 +43,7 @@ python /om/user/vanessad/om/user/vanessad/original_library/systematic-generaliza
   --mac_use_self_attention 0 \
   --mac_use_memory_gate 0 \
   --bidirectional 1 \
-  --encoder_type lstm \
+  --encoder_type null \
   --rnn_num_layers 1 \
   --rnn_wordvec_dim 300 \
   --rnn_hidden_dim 128 \
