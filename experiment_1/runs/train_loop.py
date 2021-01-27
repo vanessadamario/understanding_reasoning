@@ -162,7 +162,14 @@ def train_loop(opt, train_loader, val_loader, load=False):
     val_pass_total_time = 0.0
 
     temp_old = time.time()
-    while t < opt.hyper_opt.num_iterations:  # this is the number of steps in tf
+    satisfied_early_stop = False
+
+    if opt.hyper_opt.early_stopping:
+        max_iterations = opt.hyper_opt.max_epochs * (opt.dataset.n_training // opt.hyper_opt.batch_size)
+    else:
+        max_iterations = opt.hyper.num_iterations
+
+    while t < max_iterations:  # this is the number of steps in tf
         epoch += 1
 
         if (epoch > 0) and (opt.hyper_opt.time == 1):
@@ -234,16 +241,8 @@ def train_loop(opt, train_loader, val_loader, load=False):
             if t % opt.hyper_opt.checkpoint_every == 0:
                 num_checkpoints += 1
                 temp_time = time.time()
-                print("")
-                sys.stdout.flush()
 
-                print("TIME")
-                sys.stdout.flush()
-
-                print(temp_time - temp_old)
-                sys.stdout.flush()
-
-                print("")
+                print("\n\nTIME: ", temp_time - temp_old)
                 sys.stdout.flush()
 
                 temp_old = temp_time
@@ -270,39 +269,78 @@ def train_loop(opt, train_loader, val_loader, load=False):
                 stats['val_accs'].append(val_acc)
                 stats['val_accs_ts'].append(t)
 
-                ee_state = get_state(execution_engine)
-                print("\nSave ee state")
                 stats['model_t'] = t
                 stats['model_epoch'] = epoch
 
-                checkpoint = {
-                    'optimization_kwargs': opt.hyper_opt.__dict__,  # in case we change the lr
-                    'execution_engine_kwargs': opt.hyper_method.__dict__,
-                    'execution_engine_state': ee_state,
-                    'vocab': vocab
-                }
-                for k, v in stats.items():
-                    checkpoint[k] = v
+                if not opt.hyper_opt.early_stopping:  # brute force, we save the model at each iteration
+                    ee_state = get_state(execution_engine)
 
-                # Save current model
-                logger.info('Saving checkpoint to %s' % opt.output_path)
-                torch.save(checkpoint, join(opt.output_path, 'model'))
+                    checkpoint = {
+                        'optimization_kwargs': opt.hyper_opt.__dict__,  # in case we change the lr
+                        'execution_engine_kwargs': opt.hyper_method.__dict__,
+                        'execution_engine_state': ee_state,
+                        'vocab': vocab
+                    }
+                    for k, v in stats.items():
+                        checkpoint[k] = v
 
+                    # Save current model
+                    logger.info('Saving checkpoint to %s' % opt.output_path)
+                    torch.save(checkpoint, join(opt.output_path, 'model'))
+
+                    # Save the best model separately
+                    if val_acc > stats['best_val_acc']:
+                        logger.info('Saving best so far checkpoint to %s' % (join(opt.output_path, 'model.best')))
+                        stats['best_val_acc'] = val_acc
+                        checkpoint['execution_engine_state'] = ee_state
+                        torch.save(checkpoint, join(opt.output_path, 'model.best'))
+
+                    # Save training status in a human-readable format
+                    del checkpoint['execution_engine_state']
+                    with open(join(opt.output_path, 'model.json'), 'w') as f:
+                        json.dump(checkpoint, f, indent=2, sort_keys=True)
+
+                else:
+                    checkpoint = {
+                        'optimization_kwargs': opt.hyper_opt.__dict__,  # in case we change the lr
+                        'execution_engine_kwargs': opt.hyper_method.__dict__,
+                        'vocab': vocab
+                    }
+                    for k, v in stats.items():
+                        checkpoint[k] = v
+
+                    with open(join(opt.output_path, 'model.json'), 'w') as f:
+                        json.dump(checkpoint, f, indent=2, sort_keys=True)
+
+                    if val_acc > stats['best_val_acc']:
+                        stats['best_val_acc'] = val_acc
+
+                    if epoch > opt.hyper_opt.min_epochs:
+                        # OLD: no improvement in the last 5k iterations --
+                        #   depending on the experiment, this does not mean
+                        # NEW: the same amount of samples
+                        #   no improvement in the last epoch
+                        iterations_per_epoch = opt.dataset.n_training // opt.hyper_opt.batch_size
+                        print("\nIterations per epoch: %i" % iterations_per_epoch)
+                        mean_vl_acc = np.mean(stats['val_accs'][-iterations_per_epoch:])
+                        print("\nMean val acc and last iteration: ")
+                        print(mean_vl_acc, stats['val_accs'][-1])
+
+                        if mean_vl_acc >= stats['val_accs'][-1]:
+                            checkpoint['execution_engine_state'] = get_state(execution_engine)
+                            # Save current model and exit
+                            logger.info('Saving checkpoint to %s' % opt.output_path)
+                            torch.save(checkpoint, join(opt.output_path, 'model'))
+                            satisfied_early_stop = True
+
+                        # this attempt has been done to save the best model -- validation accuracy comparable to model
+                        # else:
+                        #     checkpoint['execution_engine_state'] = get_state(execution_engine)
+                        #     torch.save(checkpoint, join(opt.output_path, 'model.best'))
+
+            if t == max_iterations or satisfied_early_stop:
                 # Save the best model separately
-                if val_acc > stats['best_val_acc']:
-                    logger.info('Saving best so far checkpoint to %s' % (join(opt.output_path, 'model.best')))
-                    stats['best_val_acc'] = val_acc
-                    checkpoint['execution_engine_state'] = ee_state
-                    torch.save(checkpoint, join(opt.output_path, 'model.best'))
-
-                # Save training status in a human-readable format
-                del checkpoint['execution_engine_state']
-                with open(join(opt.output_path, 'model.json'), 'w') as f:
-                    json.dump(checkpoint, f, indent=2, sort_keys=True)
-
-            if t == opt.hyper_opt.num_iterations:
-                # Save the best model separately
-                break
+                return
 
             batch_start_time = time.time()
 

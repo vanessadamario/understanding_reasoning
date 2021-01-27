@@ -3,7 +3,7 @@ import os
 from os.path import join
 
 
-experiment_case_list = [0]  # [1] for VQA and binary answers  # case 2, four VQAs per image
+experiment_case_list = [1]  # [1] for VQA and binary answers  # case 2, four VQAs per image
 lr_array = [5e-3, 1e-3, 1e-4]
 method_type_list = ["SHNMN"]
 batch_list = [64, 128]
@@ -57,7 +57,7 @@ class OptimizationHyperParameters(object):
                  optimizer='Adam',
                  lr_at_plateau=True,  # TODO: not implemented in sysgen
                  reduction_factor=None,  # TODO: not implemented in sysgen
-                 validation_check=True,  # TODO: not implemented in sysgen
+                 validation_check=True,
                  num_iterations=200000,
                  sensitive_learning_rate=1e-3,
                  reward_decay=0.9,
@@ -66,9 +66,12 @@ class OptimizationHyperParameters(object):
                  randomize_checkpoint_path=False,
                  avoid_checkpoint_override=False,
                  record_loss_every=10,
-                 checkpoint_every=1000,
+                 checkpoint_every=200,  # 1000, brute force (train until num_iterations)
                  time=0,
-                 num_val_samples=1000):
+                 num_val_samples=1000,
+                 early_stopping=True,
+                 min_epochs=3,
+                 max_epochs=500):
         """
         :param learning_rate: float, the initial value for the learning rate.
         :param architecture: str, the architecture types.
@@ -77,7 +80,6 @@ class OptimizationHyperParameters(object):
             ['Adadelta', 'Adagrad', 'Adam', 'Adamax', 'ASGD', 'RMSprop', 'SGD']
         :param lr_at_plateau: bool, protocol to decrease the learning rate.
         :param reduction_factor, int, the factor which we use to reduce the learning rate.
-        :param validation_check: bool, if we want to keep track of validation loss as a stopping criterion.
         :param num_iterations: max number of iterations
         :param sensitive_learning_rate:
         :param reward_decay:
@@ -89,6 +91,10 @@ class OptimizationHyperParameters(object):
         :param checkpoint_every: save the model every checkpoint_every iterations
         :param time: default 0
         :param num_val_samples: int, max number of examples in evaluation
+        :param early_stopping: if False, we do not use the early stopping criteria.
+        :param min_epochs: int, if early_stopping is True, denotes the minimum amount of epochs before we stop
+        execution, if the stopping criterion is satisfied.
+        :param max_epochs: int, if early_stopping is True, denotes the max amount of epochs.
         """
         self.learning_rate = learning_rate
         self.architecture = architecture
@@ -108,6 +114,9 @@ class OptimizationHyperParameters(object):
         self.checkpoint_every = checkpoint_every
         self.time = time
         self.num_val_samples = num_val_samples
+        self.early_stopping = early_stopping
+        self.min_epochs = min_epochs
+        self.max_epochs = max_epochs
 
 
 class ArchitectureHyperParameters(object):
@@ -469,7 +478,7 @@ class Dataset(object):
                  dataset_id_path="",
                  experiment_case=1,
                  image_size=28,
-                 n_training=60000,
+                 n_training=210000,
                  policy=None):
         """
         :param dataset_id: str, identifier of the dataset used

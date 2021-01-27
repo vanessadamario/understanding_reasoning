@@ -236,7 +236,7 @@ def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None
     return acc
 
 
-def check_and_test(opt, flag_out_of_sample, use_gpu=True):
+def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False):
     # this must happen in the main.py
 
     # TODO remove comment, this is for testing the load function
@@ -244,6 +244,8 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True):
     #     raise ValueError("Experiment %i did not train." % opt.id)
 
     split_name = "oos_test" if flag_out_of_sample else "test"
+    if flag_validation:
+        split_name = 'valid'
     test_loader = DataTorchLoader(opt, split=split_name)
 
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))

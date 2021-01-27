@@ -27,18 +27,24 @@ parser.add_argument('--dense', type=bool, required=False, default=False)
 parser.add_argument('--data_folder', type=str, required=False, default=None)
 parser.add_argument('--host_filesystem', type=str, required=True)
 parser.add_argument('--run', type=str, required=True)
+parser.add_argument('--on_validation', type=bool, required=False, default=False)
 
 FLAGS = parser.parse_args()
 print("test oos", FLAGS.test_oos)
 print("dense", FLAGS.dense)
+
+# TODO DELETE: test
 # where to save and retrieve the experiments
-output_path = {
-    'om2': '/om2/user/vanessad/understanding_reasoning/experiment_1',
-    'om': '/om/user/vanessad/understanding_reasoning/experiment_1',
-    'vanessa': '/Users/vanessa/src/understanding_reasoning/experiment_1'}[FLAGS.host_filesystem]
-output_path = join(output_path, 'results/')
-print(output_path)
+# output_path = {
+#     'om2': '/om2/user/vanessad/understanding_reasoning/experiment_1',
+#     'om': '/om/user/vanessad/understanding_reasoning/experiment_1',
+#     'vanessa': '/Users/vanessa/src/understanding_reasoning/experiment_1'}[FLAGS.host_filesystem]
+# output_path = join(output_path, 'results/')
+#print(output_path)
 PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_1/data_generation/MNIST_splits"
+
+output_path = '/om2/user/vanessad/understanding_reasoning/experiment_1/test_early_stopping/'
+print(output_path)
 os.makedirs(output_path, exist_ok=True)
 
 if FLAGS.dense and FLAGS.data_folder is None:
@@ -92,9 +98,9 @@ def run_test(id):
     """
     # OOS:
     from runs.test import check_and_test
-    print(FLAGS.test_oos)
+    print(FLAGS.on_validation)
     opt = experiments.get_experiment(output_path, id)
-    check_and_test(opt, FLAGS.test_oos)
+    check_and_test(opt, FLAGS.test_oos, flag_validation=FLAGS.on_validation)
 
 
 def run_train(id):
