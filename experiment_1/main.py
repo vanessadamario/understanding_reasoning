@@ -6,7 +6,7 @@ import sys
 import argparse
 from os.path import join
 from runs import experiments
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+os.environ['CUDA_VISIBLE_DEVICES'] = "6"
 
 
 parser = argparse.ArgumentParser()
@@ -28,6 +28,7 @@ parser.add_argument('--data_folder', type=str, required=False, default=None)
 parser.add_argument('--host_filesystem', type=str, required=True)
 parser.add_argument('--run', type=str, required=True)
 parser.add_argument('--on_validation', type=bool, required=False, default=False)
+parser.add_argument('--output_path', type=str, required=False)  # TODO: eliminate this
 
 FLAGS = parser.parse_args()
 print("test oos", FLAGS.test_oos)
@@ -43,7 +44,8 @@ print("dense", FLAGS.dense)
 #print(output_path)
 PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_1/data_generation/MNIST_splits"
 
-output_path = '/om2/user/vanessad/understanding_reasoning/experiment_1/test_early_stopping/'
+output_path = FLAGS.output_path
+# output_path = '/om2/user/vanessad/understanding_reasoning/experiment_1/test_early_stopping/'
 print(output_path)
 os.makedirs(output_path, exist_ok=True)
 

@@ -516,6 +516,7 @@ class SHNMN(nn.Module):
                                                                         with_batchnorm=stem_batchnorm)
                                                              for qv_ in vocab["question_token_to_idx"].values()})
             rnd_key = str(self.func_(list(vocab["question_token_to_idx"].values())[0]))
+            # TODO -- change?
             tmp = (self.stem[rnd_key])(Variable(torch.zeros([1, feature_dim[0],
                                                              feature_dim[1],
                                                              feature_dim[2]])))
@@ -533,8 +534,10 @@ class SHNMN(nn.Module):
             tmp = self.stem(Variable(torch.zeros([1, feature_dim[0],
                                                   feature_dim[1],
                                                   feature_dim[2]])))
-        module_H = tmp.size(2)
-        module_W = tmp.size(3)
+        module_H = tmp.size(2)  # 7 #
+        module_W = tmp.size(3)  #  7 #
+
+        print("\nModule H, W", module_H, module_W)
         num_answers = len(vocab['answer_idx_to_token'])
 
         # old version: if self.separated_stem:
@@ -598,7 +601,10 @@ class SHNMN(nn.Module):
             # print(question[0])
             # print(self.stem[str(self.func_(int(question[0])))](image[0].unsqueeze(0)).shape)
             stemmed_img = torch.cat([(self.stem[str(self.func_(int(qv_)))](img.unsqueeze(0))).unsqueeze(1)
-                                     for img, qv_ in zip(image, question)])
+                                      for img, qv_ in zip(image, question)])
+            # stemmed_img = self.stem(image)
+            # [str(self.func_(int(qv_))) for qv_ in question]
+
             # print(stemmed_img.shape)
         else:  # separated_stem is False (original code)
             stemmed_img = self.stem(image).unsqueeze(1)  # B x 1 x C x H x W
@@ -650,7 +656,7 @@ class SHNMN(nn.Module):
         return classifier_output
 
     def forward(self, image, question):
-        if self.model_type == 'hard':
-            return self.forward_hard(image, question)
-        else:
-            return self.forward_soft(image, question)
+        # if self.model_type == 'hard':
+        #    return self.forward_hard(image, question)
+        # else:
+        return self.forward_soft(image, question)

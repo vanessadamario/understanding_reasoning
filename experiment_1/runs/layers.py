@@ -13,12 +13,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import kaiming_normal_, kaiming_uniform_
 
-
 class SequentialSaveActivations(nn.Sequential):
-
+     # def __init__(self, *args, **kwargs): #  layers):
+        # pass
+     #    super().__init__(*args, **kwargs)  # *layers)
+        # self.outputs = []
     def forward(self, input_):
         self.outputs = [input_]
+        # print(len(self._modules.values()))
         for module in self._modules.values():
+            # print("Module: ", module)
             input_ = module(input_)
             self.outputs.append(input_)
         return input_
@@ -139,7 +143,8 @@ def build_stem(feature_dim,
         if i in subsample_layers:
             layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
         prev_dim = curr_out
-    return SequentialSaveActivations(*layers)
+    # return SequentialSaveActivations(*layers)  # *layers)
+    return nn.Sequential(*layers)
 
 
 def build_classifier(module_C, module_H, module_W, num_answers,

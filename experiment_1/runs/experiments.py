@@ -4,19 +4,19 @@ from os.path import join
 
 
 experiment_case_list = [1]  # [1] for VQA and binary answers  # case 2, four VQAs per image
-lr_array = [5e-3, 1e-3, 1e-4]
+lr_array = [1e-2, 5e-3, 1e-3, 1e-4]
 method_type_list = ["SHNMN"]
-batch_list = [64, 128]
+batch_list = [128]
 dataset_dict = {"dataset_name": ["dataset_15",
                                  "dataset_16",
                                  "dataset_17",
                                  "dataset_18",
                                  "dataset_19",
-                                 # "dataset_20",
-                                 # "dataset_21",
-                                 # "dataset_22",
-                                 # "dataset_23",
-                                 # "dataset_24"
+                                 "dataset_20",
+                                 "dataset_21",
+                                 "dataset_22",
+                                 "dataset_23",
+                                 "dataset_24"
                                 ]
                 }
 dict_method_type = {"use_module": "find",
@@ -70,8 +70,11 @@ class OptimizationHyperParameters(object):
                  time=0,
                  num_val_samples=1000,
                  early_stopping=True,
+                 previous_epochs=2,
                  min_epochs=3,
-                 max_epochs=500):
+                 max_epochs=500,
+                 n_checkpoint_every_epoch=5,
+                 n_record_loss_every_epoch=50):
         """
         :param learning_rate: float, the initial value for the learning rate.
         :param architecture: str, the architecture types.
@@ -95,6 +98,7 @@ class OptimizationHyperParameters(object):
         :param min_epochs: int, if early_stopping is True, denotes the minimum amount of epochs before we stop
         execution, if the stopping criterion is satisfied.
         :param max_epochs: int, if early_stopping is True, denotes the max amount of epochs.
+        :param n_checkpoint_every_epoch: int, if early_stopping, number of checkpoint for every epoch
         """
         self.learning_rate = learning_rate
         self.architecture = architecture
@@ -115,8 +119,11 @@ class OptimizationHyperParameters(object):
         self.time = time
         self.num_val_samples = num_val_samples
         self.early_stopping = early_stopping
+        self.previous_epochs = previous_epochs
         self.min_epochs = min_epochs
         self.max_epochs = max_epochs
+        self.n_checkpoint_every_epoch = n_checkpoint_every_epoch
+        self.n_record_loss_every_epoch = n_record_loss_every_epoch
 
 
 class ArchitectureHyperParameters(object):

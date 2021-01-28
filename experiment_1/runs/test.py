@@ -72,7 +72,7 @@ def get_execution_engine(query=False, **kwargs):
     return ee
 
 
-def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None):
+def check_accuracy_test(opt, filename, test_loader, dtype, ee, pg=None):
     if opt.dataset.experiment_case == 0:
         from runs.shnmn_query import SHNMN
         query_flag = True
@@ -181,7 +181,6 @@ def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None
             tmp[:, :, :all_control_scores[i].size(2)] = all_control_scores[i]
             all_control_scores[i] = tmp
 
-    filename = "oos_output.h5" if flag_out_of_sample else "output.h5"
     output_path = join(opt.output_path, filename)
     print(len(all_correct))
     print(all_correct[0].shape)
@@ -246,6 +245,7 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False)
     split_name = "oos_test" if flag_out_of_sample else "test"
     if flag_validation:
         split_name = 'valid'
+    print("\nSplit name: %s" % split_name)
     test_loader = DataTorchLoader(opt, split=split_name)
 
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
@@ -266,6 +266,11 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False)
     else:
         dtype = torch.FloatTensor
 
-    test_acc = check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee)
+    if flag_validation:
+        filename = 'valid_output.h5'
+    else:
+        filename = "oos_output.h5" if flag_out_of_sample else "output.h5"
+
+    test_acc = check_accuracy_test(opt, filename, test_loader, dtype, ee)
     print("\nTest accuracy: ",  test_acc)
     return test_acc
