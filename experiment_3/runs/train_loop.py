@@ -1,8 +1,10 @@
+import os
 import sys
 import json
 import torch
 import logging
 import time
+import numpy as np
 from torch.autograd import Variable
 from os.path import join
 import torch.nn.functional as F
@@ -17,7 +19,6 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def get_execution_engine(**kwargs):
     """ Load the model """
-    # TODO load_execution_engine
     # consider the case where you want to load
     # print(kwargs)
     #     if args.execution_engine_start_from is not None:
@@ -25,15 +26,23 @@ def get_execution_engine(**kwargs):
     #             args.execution_engine_start_from, model_type=args.model_type)
     print("Loading model")
     print(kwargs)
+    load_last = True
     if kwargs['load_model']:
-        ee, kwargs = load_execution_engine(join(kwargs['output_path'], 'model'),
-                                           model_type="SHNMN")
+        files = os.listdir(kwargs['output_path'])
+        load_last = 'model' in files  # TODO:
+        if load_last:  # standard brute force
+            ee, kwargs = load_execution_engine(join(kwargs['output_path'], 'model'),
+                                               model_type="SHNMN")
+        else:  # early stopping
+            ee, kwargs = load_execution_engine(join(kwargs['output_path'], 'model.best'),
+                                               model_type="SHNMN")
         print(kwargs)
     else:
+        # ee = torch.jit.script(SHNMN(**kwargs))
         ee = SHNMN(**kwargs)
     ee.to(device)
     ee.train()
-    return ee
+    return ee, load_last
 
 
 def set_mode(mode, models):
@@ -93,7 +102,7 @@ def check_accuracy(opt, execution_engine, loader, test=False):
 
 
 def train_loop(opt, train_loader, val_loader, load=False):
-
+    init_training = time.time()
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
     execution_engine, ee_kwargs, ee_optimizer = None, None, None
     # vocabulary and execution engine
@@ -102,7 +111,7 @@ def train_loop(opt, train_loader, val_loader, load=False):
         'train_losses': [], 'train_rewards': [], 'train_losses_ts': [],
         'train_accs': [], 'val_accs': [], 'val_accs_ts': [], 'alphas': [], 'grads': [],
         'best_val_acc': -1, 'model_t': 0, 'model_epoch': 0,
-        'p_tree': [], 'tree_loss': [], 'chain_loss': []
+        'p_tree': [], 'tree_loss': [], 'chain_loss': [], 'best_model_t': 0, 'best_model_epoch': 0
     }
     kkwargs_exec_engine_ = opt.hyper_method.__dict__
     kkwargs_exec_engine_["vocab"] = vocab
@@ -112,7 +121,7 @@ def train_loop(opt, train_loader, val_loader, load=False):
 
     if opt.method_type in ['SHNMN']:
         # TODO load the model if it exists already
-        execution_engine = get_execution_engine(**kkwargs_exec_engine_)
+        execution_engine, load_last = get_execution_engine(**kkwargs_exec_engine_)  # TODO: new
     logger.info('Here is the conditioned network:')
     logger.info(execution_engine)
 
@@ -151,6 +160,21 @@ def train_loop(opt, train_loader, val_loader, load=False):
         # stats['model_epoch'] -= 1
 
     t, epoch, reward_moving_average = stats['model_t'], stats['model_epoch'], 0
+    best_model_t, best_model_epoch = stats['best_model_t'], stats['best_model_epoch']
+
+    if not load_last:
+        t = best_model_t
+        epoch = best_model_epoch
+        tr_ls_times = np.array(stats['train_losses_ts'])
+        vl_ac_times = np.array(stats['val_accs_ts'])
+        id_tr_ls_ts = np.sum(tr_ls_times <= t)
+        id_vl_ac_ts = np.sum(vl_ac_times <= t)
+
+        stats['train_losses'] = stats['train_losses'][:id_tr_ls_ts]
+        stats['train_losses_ts'] = stats['train_losses_ts'][:id_tr_ls_ts]
+        stats['val_accs_ts'] = stats['val_accs_ts'][:id_vl_ac_ts]
+        stats['val_accs'] = stats['val_accs'][:id_vl_ac_ts]
+        stats['train_accs'] = stats['train_accs'][:id_vl_ac_ts]
 
     num_checkpoints = 0
     reward = None  # TODO figure out what this means
@@ -161,7 +185,28 @@ def train_loop(opt, train_loader, val_loader, load=False):
     val_pass_total_time = 0.0
 
     temp_old = time.time()
-    while t < opt.hyper_opt.num_iterations:  # this is the number of steps in tf
+    satisfied_early_stop = False
+
+    if opt.hyper_opt.early_stopping:
+        n_iters_per_epoch = opt.dataset.n_training // opt.hyper_opt.batch_size
+        max_iterations = opt.hyper_opt.max_epochs * n_iters_per_epoch
+        checkpoint_every = n_iters_per_epoch // opt.hyper_opt.n_checkpoint_every_epoch  # 1/5 epoch
+        record_loss = n_iters_per_epoch // opt.hyper_opt.n_record_loss_every_epoch
+        print("\nCheckpoint accs: ", checkpoint_every)
+        print("\nCheckpoint loss: ", record_loss)
+
+    else:
+        max_iterations = opt.hyper.num_iterations
+        checkpoint_every = opt.hyper_opt.checkpoint_every
+        record_loss = opt.hyper_opt.record_loss_every
+
+    if not load_last:
+        print("\nStarting point")
+        print(t, epoch)
+        print(len(stats['train_losses']), len(stats['train_losses_ts']), stats['train_losses_ts'][-1])
+        print(len(stats['val_accs']), len(stats['val_accs_ts']), stats['val_accs_ts'][-1])
+
+    while t < max_iterations:  # this is the number of steps in tf
         epoch += 1
 
         if (epoch > 0) and (opt.hyper_opt.time == 1):
@@ -216,7 +261,7 @@ def train_loop(opt, train_loader, val_loader, load=False):
 
             ee_optimizer.step()
 
-            if t % opt.hyper_opt.record_loss_every == 0:
+            if t % record_loss == 0:
                 running_loss += loss.item()
                 avg_loss = running_loss / opt.hyper_opt.record_loss_every
                 logger.info("{} {:.5f} {:.5f} {:.5f}".format(t,
@@ -230,19 +275,11 @@ def train_loop(opt, train_loader, val_loader, load=False):
             else:
                 running_loss += loss.item()
 
-            if t % opt.hyper_opt.checkpoint_every == 0:
+            if t % checkpoint_every == 0:
                 num_checkpoints += 1
                 temp_time = time.time()
-                print("")
-                sys.stdout.flush()
-
-                print("TIME")
-                sys.stdout.flush()
-
-                print(temp_time - temp_old)
-                sys.stdout.flush()
-
-                print("")
+                print(t)
+                print("\n\nTIME: ", temp_time - temp_old)
                 sys.stdout.flush()
 
                 temp_old = temp_time
@@ -269,39 +306,79 @@ def train_loop(opt, train_loader, val_loader, load=False):
                 stats['val_accs'].append(val_acc)
                 stats['val_accs_ts'].append(t)
 
-                ee_state = get_state(execution_engine)
                 print("\nSave ee state")
                 stats['model_t'] = t
                 stats['model_epoch'] = epoch
 
-                checkpoint = {
-                    'optimization_kwargs': opt.hyper_opt.__dict__,  # in case we change the lr
-                    'execution_engine_kwargs': opt.hyper_method.__dict__,
-                    'execution_engine_state': ee_state,
-                    'vocab': vocab
-                }
-                for k, v in stats.items():
-                    checkpoint[k] = v
+                if not opt.hyper_opt.early_stopping:  # brute force, we save the model at each iteration
+                    ee_state = get_state(execution_engine)
+                    checkpoint = {
+                        'optimization_kwargs': opt.hyper_opt.__dict__,  # in case we change the lr
+                        'execution_engine_kwargs': opt.hyper_method.__dict__,
+                        'execution_engine_state': ee_state,
+                        'vocab': vocab
+                    }
+                    for k, v in stats.items():
+                        checkpoint[k] = v
 
-                # Save current model
-                logger.info('Saving checkpoint to %s' % opt.output_path)
-                torch.save(checkpoint, join(opt.output_path, 'model'))
+                    # Save current model
+                    logger.info('Saving checkpoint to %s' % opt.output_path)
+                    torch.save(checkpoint, join(opt.output_path, 'model'))
 
+                    # Save the best model separately
+                    if val_acc > stats['best_val_acc']:
+                        logger.info('Saving best so far checkpoint to %s' % (join(opt.output_path, 'model.best')))
+                        stats['best_val_acc'] = val_acc
+                        checkpoint['execution_engine_state'] = ee_state
+                        torch.save(checkpoint, join(opt.output_path, 'model.best'))
+
+                    # Save training status in a human-readable format
+                    del checkpoint['execution_engine_state']
+                    with open(join(opt.output_path, 'model.json'), 'w') as f:
+                        json.dump(checkpoint, f, indent=2, sort_keys=True)
+
+                else:
+                    checkpoint = {
+                        'optimization_kwargs': opt.hyper_opt.__dict__,  # in case we change the lr
+                        'execution_engine_kwargs': opt.hyper_method.__dict__,
+                        'vocab': vocab
+                    }
+                    for k, v in stats.items():
+                        checkpoint[k] = v
+                    with open(join(opt.output_path, 'model.json'), 'w') as f:
+                        json.dump(checkpoint, f, indent=2, sort_keys=True)
+
+                    if val_acc > stats['best_val_acc']:
+                        stats['best_val_acc'] = val_acc
+                        checkpoint['execution_engine_state'] = get_state(execution_engine)
+                        # Save current model and exit
+                        logger.info('Saving checkpoint to %s' % opt.output_path)
+                        stats['best_model_t'] = t  # TODO
+                        stats['best_model_epoch'] = epoch  # TODO
+                        torch.save(checkpoint, join(opt.output_path, 'model.best'))
+
+                    if epoch > opt.hyper_opt.min_epochs:
+                        # no improvement in the last two epochs
+                        val_acc_idxs = opt.hyper_opt.previous_epochs * opt.hyper_opt.n_checkpoint_every_epoch
+
+                        exit_condition = np.all(np.array(stats['val_accs'])[-val_acc_idxs:]-stats['best_val_acc'] < 0)
+
+                        if exit_condition:
+                            checkpoint['execution_engine_state'] = get_state(execution_engine)
+                            # Save current model and exit
+                            logger.info('Saving checkpoint to %s' % opt.output_path)
+                            torch.save(checkpoint, join(opt.output_path, 'model'))
+                            satisfied_early_stop = True
+
+                        # this attempt has been done to save the best model -- validation accuracy comparable to model
+                        # else:
+                        #     checkpoint['execution_engine_state'] = get_state(execution_engine)
+                        #     torch.save(checkpoint, join(opt.output_path, 'model.best'))
+            if t == max_iterations or satisfied_early_stop:
                 # Save the best model separately
-                if val_acc > stats['best_val_acc']:
-                    logger.info('Saving best so far checkpoint to %s' % (join(opt.output_path, 'model.best')))
-                    stats['best_val_acc'] = val_acc
-                    checkpoint['execution_engine_state'] = ee_state
-                    torch.save(checkpoint, join(opt.output_path, 'model.best'))
-
-                # Save training status in a human-readable format
-                del checkpoint['execution_engine_state']
-                with open(join(opt.output_path, 'model.json'), 'w') as f:
-                    json.dump(checkpoint, f, indent=2, sort_keys=True)
-
-            if t == opt.hyper_opt.num_iterations:
-                # Save the best model separately
-                break
+                print("\nTraining time")
+                print(time.time() - init_training)
+                return
 
             batch_start_time = time.time()
 

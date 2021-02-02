@@ -23,7 +23,7 @@ def load_execution_engine(path,
                           query=False):
     checkpoint = load_cpu(path)
     # TODO: remember to change this
-    # TODO depending on query or residual
+    # TODO depending on query
     kwargs = checkpoint['execution_engine_kwargs']
     state = checkpoint['execution_engine_state']
     kwargs['verbose'] = verbose
@@ -254,7 +254,6 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False)
                                                                "model.best")
     kkwargs_exec_engine_["vocab"] = vocab
     kkwargs_exec_engine_["method_type"] = opt.method_type
-    sys.stdout.flush()
     if opt.dataset.experiment_case == 0:
         query = True
     else:
@@ -274,3 +273,20 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False)
     test_acc = check_accuracy_test(opt, filename, test_loader, dtype, ee)
     print("\nTest accuracy: ",  test_acc)
     return test_acc
+
+
+def extract_accuracy_val(opt, oos_distribution=False, validation=False):
+    if validation:
+        input_file = "valid_output.h5"
+        output_file = "valid_accuracy.npy"
+    elif oos_distribution:
+        input_file = "oos_output.h5"
+        output_file = "oos_test_accuracy.npy"
+    else:
+        input_file = "output.h5"
+        output_file = "test_accuracy.npy"
+
+    filename = join(opt.output_path, input_file)
+    file = h5py.File(filename, "r")
+    correct = np.array([k_ for k_ in file["correct"]])
+    np.save(join(opt.output_path, output_file), np.sum(correct) / correct.size)

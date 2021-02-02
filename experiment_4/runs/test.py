@@ -23,7 +23,7 @@ def load_execution_engine(path,
                           query=False):
     checkpoint = load_cpu(path)
     # TODO: remember to change this
-    # TODO depending on query or residual
+    # TODO depending on query
     kwargs = checkpoint['execution_engine_kwargs']
     state = checkpoint['execution_engine_state']
     kwargs['verbose'] = verbose
@@ -72,9 +72,15 @@ def get_execution_engine(query=False, **kwargs):
     return ee
 
 
-def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None):
+def check_accuracy_test(opt, filename, test_loader, dtype, ee, pg=None):
     from runs.shnmn import SHNMN
-    query_flag = False
+    if opt.dataset.experiment_case == 0:
+        from runs.shnmn_query import SHNMN
+        query_flag = True
+
+    else:
+        from runs.shnmn import SHNMN
+        query_flag = False
 
     # if pg is None:
     #     pg = ee
@@ -99,6 +105,9 @@ def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None
     for i__, batch in enumerate(tqdm(test_loader)):
         assert(not ee.training)
         feats, questions, answers = batch
+        if query_flag:
+            raise ValueError('Test evaluation not implemented')
+
         if isinstance(questions, list):
             questions_var = questions[0].type(dtype).long()
             q_types += [questions[1].cpu().numpy()]
@@ -152,7 +161,6 @@ def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None
             tmp[:, :, :all_control_scores[i].size(2)] = all_control_scores[i]
             all_control_scores[i] = tmp
 
-    filename = "oos_output.h5" if flag_out_of_sample else "output.h5"
     output_path = join(opt.output_path, filename)
     print(len(all_correct))
     print(all_correct[0].shape)
@@ -207,7 +215,7 @@ def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None
     return acc
 
 
-def check_and_test(opt, flag_out_of_sample, use_gpu=True):
+def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False):
     # this must happen in the main.py
 
     # TODO remove comment, this is for testing the load function
@@ -215,6 +223,9 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True):
     #     raise ValueError("Experiment %i did not train." % opt.id)
 
     split_name = "oos_test" if flag_out_of_sample else "test"
+    if flag_validation:
+        split_name = 'valid'
+    print("\nSplit name: %s" % split_name)
     test_loader = DataTorchLoader(opt, split=split_name)
 
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
@@ -223,9 +234,10 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True):
                                                                "model.best")
     kkwargs_exec_engine_["vocab"] = vocab
     kkwargs_exec_engine_["method_type"] = opt.method_type
-    sys.stdout.flush()
-
-    query = False
+    if opt.dataset.experiment_case == 0:
+        query = True
+    else:
+        query = False
 
     ee = get_execution_engine(query=query, **kkwargs_exec_engine_)
     if use_gpu:
@@ -233,6 +245,28 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True):
     else:
         dtype = torch.FloatTensor
 
-    test_acc = check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee)
+    if flag_validation:
+        filename = 'valid_output.h5'
+    else:
+        filename = "oos_output.h5" if flag_out_of_sample else "output.h5"
+
+    test_acc = check_accuracy_test(opt, filename, test_loader, dtype, ee)
     print("\nTest accuracy: ",  test_acc)
     return test_acc
+
+
+def extract_accuracy_val(opt, oos_distribution=False, validation=False):
+    if validation:
+        input_file = "valid_output.h5"
+        output_file = "valid_accuracy.npy"
+    elif oos_distribution:
+        input_file = "oos_output.h5"
+        output_file = "oos_test_accuracy.npy"
+    else:
+        input_file = "output.h5"
+        output_file = "test_accuracy.npy"
+
+    filename = join(opt.output_path, input_file)
+    file = h5py.File(filename, "r")
+    correct = np.array([k_ for k_ in file["correct"]])
+    np.save(join(opt.output_path, output_file), np.sum(correct) / correct.size)

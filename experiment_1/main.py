@@ -6,7 +6,7 @@ import sys
 import argparse
 from os.path import join
 from runs import experiments
-os.environ['CUDA_VISIBLE_DEVICES'] = "6"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 
 parser = argparse.ArgumentParser()
@@ -99,10 +99,11 @@ def run_test(id):
     """ Compute test accuracy for id experiment.
     """
     # OOS:
-    from runs.test import check_and_test
+    from runs.test import check_and_test, extract_accuracy_val
     print(FLAGS.on_validation)
     opt = experiments.get_experiment(output_path, id)
     check_and_test(opt, FLAGS.test_oos, flag_validation=FLAGS.on_validation)
+    extract_accuracy_val(opt, oos_distribution=FLAGS.test_oos, validation=FLAGS.on_validation)
 
 
 def run_train(id):

@@ -4,7 +4,7 @@ from os.path import join
 
 
 experiment_case_list = [1]  # [1] for VQA and binary answers  # case 2, four VQAs per image
-lr_array = [1e-1, 1e-2, 5e-3, 1e-3, 1e-4, 1e-5]
+lr_array = [1e-2, 5e-3, 1e-3, 1e-4, 1e-5]
 method_type_list = ["SHNMN"]
 batch_list = [64]
 dataset_dict = {"dataset_name": ["dataset_0",
@@ -64,7 +64,13 @@ class OptimizationHyperParameters(object):
                  record_loss_every=10,
                  checkpoint_every=1000,
                  time=0,
-                 num_val_samples=1000):
+                 num_val_samples=1000,
+                 early_stopping=True,
+                 previous_epochs=2,
+                 min_epochs=3,
+                 max_epochs=500,
+                 n_checkpoint_every_epoch=5,
+                 n_record_loss_every_epoch=50):
         """
         :param learning_rate: float, the initial value for the learning rate.
         :param architecture: str, the architecture types.
@@ -85,6 +91,11 @@ class OptimizationHyperParameters(object):
         :param checkpoint_every: save the model every checkpoint_every iterations
         :param time: default 0
         :param num_val_samples: int, max number of examples in evaluation
+        :param early_stopping: if False, we do not use the early stopping criteria.
+        :param min_epochs: int, if early_stopping is True, denotes the minimum amount of epochs before we stop
+        execution, if the stopping criterion is satisfied.
+        :param max_epochs: int, if early_stopping is True, denotes the max amount of epochs.
+        :param n_checkpoint_every_epoch: int, if early_stopping, number of checkpoint for every epoch
         """
         self.learning_rate = learning_rate
         self.architecture = architecture
@@ -104,6 +115,12 @@ class OptimizationHyperParameters(object):
         self.checkpoint_every = checkpoint_every
         self.time = time
         self.num_val_samples = num_val_samples
+        self.early_stopping = early_stopping
+        self.previous_epochs = previous_epochs
+        self.min_epochs = min_epochs
+        self.max_epochs = max_epochs
+        self.n_checkpoint_every_epoch = n_checkpoint_every_epoch
+        self.n_record_loss_every_epoch = n_record_loss_every_epoch
 
 
 class ArchitectureHyperParameters(object):
@@ -464,8 +481,8 @@ class Dataset(object):
                  dataset_split="train",
                  dataset_id_path="",
                  experiment_case=1,
-                 image_size=28,
-                 n_training=60000,
+                 image_size=64,
+                 n_training=210000,
                  policy=None):
         """
         :param dataset_id: str, identifier of the dataset used

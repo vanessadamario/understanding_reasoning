@@ -73,7 +73,7 @@ def get_execution_engine(query=False, **kwargs):
     return ee
 
 
-def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None):
+def check_accuracy_test(opt, filename, test_loader, dtype, ee, pg=None):
     if opt.dataset.experiment_case == 0:
         from runs.shnmn_query import SHNMN
         query_flag = True
@@ -182,7 +182,6 @@ def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None
             tmp[:, :, :all_control_scores[i].size(2)] = all_control_scores[i]
             all_control_scores[i] = tmp
 
-    filename = "oos_output.h5" if flag_out_of_sample else "output.h5"
     output_path = join(opt.output_path, filename)
     print(len(all_correct))
     print(all_correct[0].shape)
@@ -195,7 +194,7 @@ def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None
             fout.create_dataset('correct', data=torch.cat(all_correct, 0).numpy())
         else:
             fout.create_dataset('correct', data=torch.stack(all_correct, 0).numpy().T)
-        if all_film_scores:
+        """if all_film_scores:
             fout.create_dataset('film_scores', data=torch.cat(all_film_scores, 1).numpy())
         if all_vib_costs:
             fout.create_dataset('vib_costs', data=torch.cat(all_vib_costs, 0).numpy())
@@ -204,7 +203,7 @@ def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None
         if all_control_scores:
             fout.create_dataset('control_scores', data=torch.cat(all_control_scores, 0).numpy())
         if all_connections:
-            fout.create_dataset('connections', data=torch.cat(all_connections, 0).numpy())
+            fout.create_dataset('connections', data=torch.cat(all_connections, 0).numpy())"""
 
     # Save FiLM param stats
     # if args.output_program_stats_dir:
@@ -237,14 +236,38 @@ def check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee, pg=None
     return acc
 
 
-def check_and_test(opt, flag_out_of_sample, use_gpu=True):
+def extract_accuracy_val(opt, oos_distribution=False, validation=False):
+    if validation:
+        input_file = "valid_output.h5"
+        output_file = "valid_accuracy.npy"
+    elif oos_distribution:
+        input_file = "oos_output.h5"
+        output_file = "oos_test_accuracy.npy"
+    else:
+        input_file = "output.h5"
+        output_file = "test_accuracy.npy"
+
+    filename = join(opt.output_path, input_file)
+    file = h5py.File(filename, "r")
+    correct = np.array([k_ for k_ in file["correct"]])
+    np.save(join(opt.output_path, output_file), np.sum(correct) / correct.size)
+
+
+def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False):
     # this must happen in the main.py
 
     # TODO remove comment, this is for testing the load function
     # if not opt.train_completed:
     #     raise ValueError("Experiment %i did not train." % opt.id)
 
-    split_name = "oos_test" if flag_out_of_sample else "test"
+    if flag_validation:
+        split_name = "valid"
+        filename = 'valid_output.h5'
+    else:
+        split_name = "oos_test" if flag_out_of_sample else "test"
+        filename = "oos_output.h5" if flag_out_of_sample else "output.h5"
+
+    print("Split name: ", split_name)
     test_loader = DataTorchLoader(opt, split=split_name)
 
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
@@ -265,6 +288,8 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True):
     else:
         dtype = torch.FloatTensor
 
-    test_acc = check_accuracy_test(opt, flag_out_of_sample, test_loader, dtype, ee)
+    test_acc = check_accuracy_test(opt, filename, test_loader, dtype, ee)
     print("\nTest accuracy: ",  test_acc)
+    extract_accuracy_val(opt, oos_distribution=flag_out_of_sample, validation=flag_validation)
+
     return test_acc

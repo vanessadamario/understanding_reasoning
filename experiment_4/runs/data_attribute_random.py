@@ -13,6 +13,18 @@ vocab = {k_: int(k_) for k_ in MNIST_DIGITS}  # MNIST
 for i_, r_ in enumerate(RELATIONS):
     vocab[r_] = i_ + len(MNIST_DIGITS)
 
+category_idx = [k_ for k_ in range(10)]
+relations_idx = [k_ for k_ in range(10, 14)]
+
+
+def map_question_idx_to_attribute_category(idx):
+    if idx in category_idx:
+        return 0
+    elif idx in relations_idx:
+        return 1
+    else:
+        raise ValueError("The inserted index is wrong")
+
 
 def change_size(img, digit_size, output_size=28, position_x=-0, position_y=-0):
     """

@@ -157,7 +157,8 @@ def generate_combinations(n_combinations_train=1,
     # we force the dataset to be red
 
     # dataset 15-19 random seed 123
-    np.random.seed(123)  # in this way the tuples are always the same
+    # np.random.seed(123)  # in this way the tuples are always the same dataset_0 - dataset_5
+    np.random.seed(456)  # dataset
     # especially at test
 
     for k_ in range(n_combinations_test):

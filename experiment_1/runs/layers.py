@@ -75,7 +75,6 @@ class ResidualBlock(nn.Module):
         return out
 
 
-
 class ConcatBlock(nn.Module):
     def __init__(self, dim, kernel_size, with_residual=True, with_batchnorm=True, use_simple=False):
         super(ConcatBlock, self).__init__()

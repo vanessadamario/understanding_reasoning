@@ -235,30 +235,30 @@ def train_loop(opt, train_loader, val_loader, load=False):
             if opt.method_type in ['SimpleNMN', 'SHNMN']:
                 # Train execution engine with ground-truth programs
                 ee_optimizer.zero_grad()
-            print("forward time: ")
-            t0 = time.time()
+            # print("forward time: ")
+            # t0 = time.time()
             scores = execution_engine(feats_var, questions_var)
-            print(time.time() - t0)
+            # print(time.time() - t0)
             if opt.hyper_method.model_type == 'hard':
                 tree_loss = loss_fn(execution_engine.tree_scores, answers_var)
                 chain_loss = loss_fn(execution_engine.chain_scores, answers_var)
 
-            print("backward time: ")
-            t0 = time.time()
+            # print("backward time: ")
+            # t0 = time.time()
             loss = loss_fn(scores, answers_var)
-            print(scores.is_cuda)
-            print(answers_var.is_cuda)
-            print(loss.is_cuda)
-            print(time.time()-t0)
+            # print(scores.is_cuda)
+            # print(answers_var.is_cuda)
+            # print(loss.is_cuda)
+            # print(time.time()-t0)
             loss.backward()
-            print(loss.is_cuda)
-            torch.cuda.is_available()
-            torch.cuda.get_device_name(0)
-            print(time.time()-t0)
+            # print(loss.is_cuda)
+            # torch.cuda.is_available()
+            # torch.cuda.get_device_name(0)
+            # print(time.time()-t0)
             # record alphas and gradients and p(model) here : DEBUGGING
             if opt.method_type == 'SHNMN' and opt.hyper_method.model_type == 'hard':
                 p_tree = F.sigmoid(execution_engine.tree_odds).item()
-                if t % opt.hyper_opt.record_loss_every == 0:
+                if t % record_loss == 0:
                     print('p_tree:', p_tree)
                     stats['p_tree'].append(p_tree)
                     stats['tree_loss'].append(tree_loss.item())
@@ -276,7 +276,6 @@ def train_loop(opt, train_loader, val_loader, load=False):
                         stats['alphas_{}_grad'.format(i)].append(alphas_i_grad.tolist())
 
             ee_optimizer.step()
-
 
             if t % record_loss == 0:
                 running_loss += loss.item()
@@ -372,12 +371,9 @@ def train_loop(opt, train_loader, val_loader, load=False):
                         stats['best_model_t'] = t  # TODO
                         stats['best_model_epoch'] = epoch  # TODO
                         torch.save(checkpoint, join(opt.output_path, 'model.best'))
-                        # counter = 0
 
                     if epoch > opt.hyper_opt.min_epochs:
-
                         # no improvement in the last two epochs
-                        previous_epochs = 2
                         val_acc_idxs = opt.hyper_opt.previous_epochs * opt.hyper_opt.n_checkpoint_every_epoch
 
                         exit_condition = np.all(np.array(stats['val_accs'])[-val_acc_idxs:]-stats['best_val_acc'] < 0)

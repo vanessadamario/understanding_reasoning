@@ -3,14 +3,21 @@ import os
 from os.path import join
 
 
-experiment_case_list = [0]  # [1] for VQA and binary answers
+# TODO: remember to change the parameters for the dataset : n_training
+experiment_case_list = [1]  # [1] for VQA and binary answers
 lr_array = [1e-1, 1e-2, 5e-3, 1e-3, 1e-5]  # [1e-4]  #
 method_type_list = ["SHNMN"]
 batch_list = [64]
-dataset_dict = {"dataset_name": ["sqoop_variety_1"],
+dataset_dict = {"dataset_name": ["dataset_0",
+                                 "dataset_1",
+                                 "dataset_2",
+                                 "dataset_3",
+                                 "dataset_4",
+                                 "dataset_5"
+                                 ]
                 }
 
-dict_method_type = {"use_module": "find",
+dict_method_type = {"use_module": "residual",
                     "model_type": 'soft',
                     "tau_init": "tree",
                     "alpha_init": "correct",
@@ -31,9 +38,9 @@ dict_method_type = {"use_module": "find",
                     "classifier_batchnorm": 0,  # TODO: classifier_batchnorm changed 0
                     "classifier_downsample": "maxpoolfull",
                     "num_modules": 3,
-                    "separated_stem": False,
-                    "separated_module": False,
-                    "separated_classifier": False
+                    "separated_stem": True,
+                    "separated_module": True,
+                    "separated_classifier": True
                     }
 
 class OptimizationHyperParameters(object):
@@ -58,7 +65,13 @@ class OptimizationHyperParameters(object):
                  record_loss_every=10,
                  checkpoint_every=1000,
                  time=0,
-                 num_val_samples=1000):
+                 num_val_samples=1000,
+                 early_stopping=True,
+                 previous_epochs=2,
+                 min_epochs=3,
+                 max_epochs=500,
+                 n_checkpoint_every_epoch=5,
+                 n_record_loss_every_epoch=50):
         """
         :param learning_rate: float, the initial value for the learning rate.
         :param architecture: str, the architecture types.
@@ -98,6 +111,12 @@ class OptimizationHyperParameters(object):
         self.checkpoint_every = checkpoint_every
         self.time = time
         self.num_val_samples = num_val_samples
+        self.early_stopping = early_stopping
+        self.previous_epochs = previous_epochs
+        self.min_epochs = min_epochs
+        self.max_epochs = max_epochs
+        self.n_checkpoint_every_epoch = n_checkpoint_every_epoch
+        self.n_record_loss_every_epoch = n_record_loss_every_epoch
 
 
 class ArchitectureHyperParameters(object):
@@ -458,8 +477,8 @@ class Dataset(object):
                  dataset_split="train",
                  dataset_id_path="",
                  experiment_case=1,
-                 image_size=28,
-                 n_training=60000,
+                 image_size=64,
+                 n_training=210000,
                  policy=None):
         """
         :param dataset_id: str, identifier of the dataset used
