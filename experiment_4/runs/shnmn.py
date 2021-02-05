@@ -660,6 +660,7 @@ class SHNMN(nn.Module):
     def forward_soft(self, image, question):
         # the question must drive the stem to use
         question_copy = torch.clone(question)
+
         if (image.ndimension() == 5) != self.image_pair:
             raise ValueError('Incongruent')
 
@@ -751,13 +752,14 @@ class SHNMN(nn.Module):
                 else:
                     raise ValueError('Separated classifier not implemented')
 
-            elif self.num_modules == 3:
+            elif self.num_modules == 3: 
+
                 if self.use_module == 'find':
                     classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_].unsqueeze(0))
-                                                   for i_, qv_ in enumerate(question_copy[:, 2])])
+                                                   for i_, qv_ in enumerate(question_copy[:, 1])])
                 elif self.use_module == 'residual':
                     classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_].unsqueeze(0))
-                                                   for i_, qv_ in enumerate(question_copy[:, 2])])
+                                                   for i_, qv_ in enumerate(question_copy[:, 1])])
             else:
                 raise ValueError('Separated classifier not implemented')
             return classifier_output
