@@ -232,19 +232,43 @@ def check_accuracy_test(opt, filename, test_loader, dtype, ee, pg=None):
 
     # if args.debug_every <= 1:
     #     pdb.set_trace()
+
+    file = h5py.File(output_path, "r")
+    correct = np.array([k_ for k_ in file["correct"]])
+
+    if opt.dataset.experiment_case == 0:  # query
+        accuracy = np.sum(correct, axis=0) / correct.shape[0]
+    else:  # vqa
+        accuracy = np.sum(correct) / correct.size
+    tmp_name = filename.split('output.h5')[0]
+    if len(tmp_name) == 0:
+        tmp_name = 'test_'
+    accuracy_filename = '%saccuracy.npy' % tmp_name
+    np.save(join(opt.output_path, accuracy_filename), accuracy)
+
     return acc
 
 
-def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False):
+def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False, test_seen=False):
     # this must happen in the main.py
 
-    # TODO remove comment, this is for testing the load function
-    # if not opt.train_completed:
-    #     raise ValueError("Experiment %i did not train." % opt.id)
+    if not opt.train_completed:
+        raise ValueError("Experiment %i did not train." % opt.id)
 
-    split_name = "oos_test" if flag_out_of_sample else "test"
-    if flag_validation:
-        split_name = 'valid'
+    if test_seen:
+        if flag_validation:
+            split_name = 'in_distr_valid'
+        else:
+            split_name = 'in_distr_test'
+    else:
+        if flag_validation:
+            split_name = 'valid'
+        else:
+            split_name = 'test'
+
+    if flag_out_of_sample:
+        split_name = 'oos_test'
+
     print("\nSplit name: %s" % split_name)
     test_loader = DataTorchLoader(opt, split=split_name)
 
@@ -265,26 +289,43 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False)
     else:
         dtype = torch.FloatTensor
 
-    if flag_validation:
-        filename = 'valid_output.h5'
+    if test_seen:
+        if flag_validation:
+            filename = 'seen_valid_output.h5'
+        else:
+            filename = 'seen_output.h5'
     else:
-        filename = "oos_output.h5" if flag_out_of_sample else "output.h5"
+        if flag_validation:
+            filename = 'valid_output.h5'
+        else:
+            filename = 'output.h5'
+
+    if flag_out_of_sample:
+        filename = 'oos_output.h5'
 
     test_acc = check_accuracy_test(opt, filename, test_loader, dtype, ee)
     print("\nTest accuracy: ",  test_acc)
     return test_acc
 
 
-def extract_accuracy_val(opt, oos_distribution=False, validation=False):
-    if validation:
-        input_file = "valid_output.h5"
-        output_file = "valid_accuracy.npy"
-    elif oos_distribution:
+def extract_accuracy_val(opt, oos_distribution=False, validation=False, test_seen=False):
+    if oos_distribution:
         input_file = "oos_output.h5"
         output_file = "oos_test_accuracy.npy"
     else:
         input_file = "output.h5"
         output_file = "test_accuracy.npy"
+
+    if test_seen:
+        input_file = 'seen_output.h5'
+        output_file = 'test_seen_accuracy.npy'
+    if validation:
+        input_file = "valid_output.h5"
+        output_file = "valid_accuracy.npy"
+
+    if opt.dataset.experiment_case == 0:
+        input_file = 'query_%s' % input_file
+        output_file = 'query_%s' % output_file
 
     filename = join(opt.output_path, input_file)
     file = h5py.File(filename, "r")
