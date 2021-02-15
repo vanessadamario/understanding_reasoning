@@ -102,12 +102,7 @@ vocab["all_questions_token_to_idx"].update({"%s" % s_: k_
                                                                  "medium",
                                                                  "large"],
                                                                 size_idx)})
-vocab["question_token_to_idx"] = {"%i" % k_: k_ for k_ in category_idx}
-vocab["question_token_to_idx"].update({"%s" % s_: k_
-                                            for (s_, k_) in zip(["small",
-                                                                 "medium",
-                                                                 "large"],
-                                                                size_idx)})
+vocab["question_token_to_idx"] = vocab["all_questions_token_to_idx"].copy()
 
 vocab["all_questions_token_to_idx"].update({"%s" % s_: k_
                                             for (s_, k_) in zip(["contour"], contour_idx)})
@@ -167,7 +162,8 @@ def generate_data_matrix(n_train,
                          tuples_test,
                          path_output_folder,
                          path_original_file,
-                         flag_program=False):
+                         flag_program=False,
+                         test_seen=False):
     """
     This function saves a tuple of the input we need to train and test the
     networks.
@@ -185,6 +181,14 @@ def generate_data_matrix(n_train,
     It saves in files the two.
     """
     split_name = ["train", "valid", "test"]
+    n_list = [n_train, 2000, 2000]
+    tuples_list = [tuples_train, tuples_test, tuples_test]
+
+    if test_seen:
+        split_name = split_name[1:]
+        n_list = n_list[1:]
+        tuples_list = tuples_list[1:]
+
     x_split_files = ["x_%s.npy" % s_ for s_ in split_name]
     y_split_files = ["y_%s.npy" % s_ for s_ in split_name]
 
@@ -197,8 +201,7 @@ def generate_data_matrix(n_train,
     _, dim_x, dim_y = x_original[0].shape  # image dimensions (equivalent across splits)
 
     n_questions = len(dict_question_to_idx.keys())  # number of questions
-    n_list = [n_train, 2000, 2000]
-    tuples_list = [tuples_train, tuples_test, tuples_test]
+
     ch_ = 3  # color channel
 
     for id_, (x_, y_, n_, tuples_, split_) in enumerate(zip(x_original, y_original, n_list, tuples_list, split_name)):
@@ -222,6 +225,9 @@ def generate_data_matrix(n_train,
                 images_to_use = np.random.choice(digit_indexes[int(p_tuple[0])], size=n_cat_per_tuple)
                 # indexes for the digit in the tuple
                 for id_count, id_image in enumerate(images_to_use):
+                    if isinstance(p_tuple[4], str):
+                        p_tuple[4] = False if p_tuple[4] == 'False' else True
+
                     x_new[count_] = transform(x_[id_image] / 255,
                                               reshape=p_tuple[3],
                                               color=p_tuple[1],
@@ -239,6 +245,8 @@ def generate_data_matrix(n_train,
                 for id_tmp in tmp_list:
                     tmp_tuple = p_tuples_[id_tmp]
                     id_image = np.random.choice(digit_indexes[int(tmp_tuple[0])])
+                    if isinstance(tmp_tuple[4], str):
+                        tmp_tuple[4] = False if tmp_tuple[4] == 'False' else True
                     x_new[count_] = transform(x_[id_image] / 255,
                                               reshape=tmp_tuple[3],
                                               color=tmp_tuple[1],
@@ -258,6 +266,8 @@ def generate_data_matrix(n_train,
                 images_to_use = np.random.choice(digit_indexes[int(n_tuple[0])], size=n_cat_per_tuple)
                 # indexes for the digit in the tuple
                 for id_count, id_image in enumerate(images_to_use):
+                    if isinstance(n_tuple[4], str):
+                        n_tuple[4] = False if n_tuple[4] == 'False' else True
                     x_new[count_] = transform(x_[id_image] / 255,
                                               reshape=n_tuple[3],
                                               color=n_tuple[1],
@@ -275,6 +285,8 @@ def generate_data_matrix(n_train,
                 for id_tmp in tmp_list:
                     tmp_tuple = n_tuples_[id_tmp]
                     id_image = np.random.choice(digit_indexes[int(tmp_tuple[0])])
+                    if isinstance(tmp_tuple[4], str):
+                        tmp_tuple[4] = False if tmp_tuple[4] == 'False' else True
                     x_new[count_] = transform(x_[id_image] / 255,
                                               reshape=tmp_tuple[3],
                                               color=tmp_tuple[1],
@@ -293,14 +305,20 @@ def generate_data_matrix(n_train,
         np.random.seed(123)
         np.random.shuffle(rnd_indexes)
 
+        if test_seen:
+            split_ = 'in_distr_%s' % split_
+
+        print("SAVE: ", path_output_folder)
+        print(x_new.shape)
         np.save(join(path_output_folder, "feats_%s" % split_), x_new[rnd_indexes])
         np.save(join(path_output_folder, "questions_%s" % split_), q_new[rnd_indexes])
         np.save(join(path_output_folder, "answers_%s" % split_), a_new[rnd_indexes])
         np.save(join(path_output_folder, 'attributes_%s' % split_), np.array(list_attributes_examples)[rnd_indexes])
 
-    # save vocab
-    with open(join(path_output_folder, 'vocab.json'), 'w') as outfile:
-        json.dump(vocab, outfile)
+    if not test_seen:
+        # save vocab
+        with open(join(path_output_folder, 'vocab.json'), 'w') as outfile:
+            json.dump(vocab, outfile)
 
 
 def generate_tuple(output_path,
@@ -501,7 +519,9 @@ def generate_combinations(n_combinations_train=1,
     # we force the dataset to be red
 
     # dataset 15-19 random seed 123
-    np.random.seed(179)  # in this way the tuples are always the same
+    # np.random.seed(123)
+    np.random.seed(179)  # in this way the tuples are always the same 20-24
+    # np.random.seed(78910)  # 7-12
     # especially at test
 
     for k_ in range(n_combinations_test):
@@ -615,65 +635,87 @@ def generate_data_file(output_data_folder,
                        n_tuples_test_p,
                        n_tuples_test_n,
                        splits_folder,
-                       random_combinations=False):
-    print("Im in the function")
-    sys.stdout.flush()
+                       random_combinations=False,
+                       test_seen=False,
+                       dataset_name=None):
+
     # TODO: RANDOM COMBINATION
     # ALWAYS SET TO FALSE
-    info = {}
-    info_path = output_data_folder + 'data_list.json'
-    print(info_path)
-    dirname = os.path.dirname(info_path)
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
-        idx_base = 0
-    elif os.path.isfile(info_path):
-        with open(info_path) as infile:
-            info = json.load(infile)
-            if info:  # it is not empty
-                idx_base = int(list(info.keys())[-1]) + 1  # concatenate
-            else:
-                idx_base = 0
-    else:  # we have the folder but the file is empty
-        info = dict()
-        idx_base = 0
-
-    os.makedirs(output_data_folder + "dataset_%i" % idx_base,
-                exist_ok=False)
-
-    if random_combinations:  # old code
-        tuples_train, tuples_test = generate_tuple(output_path=output_data_folder + "dataset_%i" % idx_base,
-                                                   combinations_train_p=n_tuples_train_p,
-                                                   combinations_train_n=n_tuples_train_n,
-                                                   combinations_test_p=n_tuples_test_p,
-                                                   combinations_test_n=n_tuples_test_n,
-                                                   vocab_=None)
-    # print(len(tuples_train), len(tuples_test))  it is divided in training and test
-    # test tuples are typically not balanced
-    # print(len(tuples_test[0][0]), len(tuples_test[1][0]))  # positive and negative
+    if test_seen:
+        if dataset_name is None:
+            raise ValueError("Provide dataset_name")
+        dataset_path_ = join(output_data_folder, dataset_name)
+        attr_tr = np.load(join(dataset_path_, 'attributes_train.npy'))
+        tmp_comb = np.unique(attr_tr, axis=0)
+        comb_train = [[j__ for j__ in j_] for j_ in tmp_comb]
+        comb_test = comb_train
+        print(comb_train)
+        print("\n\n")
+        print(comb_test)
 
     else:
-        comb_train, comb_test = generate_combinations(n_combinations_train=n_tuples_train_p,
-                                                      vocab_=vocab)
+        info = {}
+        info_path = output_data_folder + 'data_list.json'
+        print(info_path)
+        dirname = os.path.dirname(info_path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+            idx_base = 0
+        elif os.path.isfile(info_path):
+            with open(info_path) as infile:
+                info = json.load(infile)
+                if info:  # it is not empty
+                    idx_base = int(list(info.keys())[-1]) + 1  # concatenate
+                else:
+                    idx_base = 0
+        else:  # we have the folder but the file is empty
+            info = dict()
+            idx_base = 0
 
-        tuples_train, tuples_test = split_combinations(comb_train,
-                                                       comb_test,
-                                                       force_balance=False)
+        if not dataset_name is None:
+            index = int(dataset_name.split("_")[-1])
+            if index >= idx_base:
+                idx_base = index
+        print('dataset id', idx_base)
 
-    dataset_path_ = output_data_folder + "dataset_%i" % idx_base
+        os.makedirs(output_data_folder + "dataset_%i" % idx_base,
+                    exist_ok=False)
 
-    info[idx_base] = {"dataset_name": "dataset_%i" % idx_base,
-                      "dataset_path": output_data_folder + "dataset_%i" % idx_base,
-                      "dataset_train": tuples_train,
-                      "dataset_test": tuples_test,
-                      "question_token": vocab["question_token_to_idx"],
-                      "positive_combinations_train": n_tuples_train_p,
-                      "negative_combinations_train": n_tuples_train_n,
-                      "positive_combinations_test": n_tuples_test_p,
-                      "negative_combinations_test": n_tuples_test_n}
+        if random_combinations:  # old code
+            tuples_train, tuples_test = generate_tuple(output_path=output_data_folder + "dataset_%i" % idx_base,
+                                                       combinations_train_p=n_tuples_train_p,
+                                                       combinations_train_n=n_tuples_train_n,
+                                                       combinations_test_p=n_tuples_test_p,
+                                                       combinations_test_n=n_tuples_test_n,
+                                                       vocab_=None)
+        # print(len(tuples_train), len(tuples_test))  it is divided in training and test
+        # test tuples are typically not balanced
+        # print(len(tuples_test[0][0]), len(tuples_test[1][0]))  # positive and negative
 
-    with open(info_path, 'w') as f:
-        json.dump(info, f)
+        else:
+            comb_train, comb_test = generate_combinations(n_combinations_train=n_tuples_train_p,
+                                                          vocab_=vocab)
+
+    tuples_train, tuples_test = split_combinations(comb_train,
+                                                   comb_test,
+                                                   force_balance=False)
+
+    if not test_seen:
+
+        dataset_path_ = output_data_folder + "dataset_%i" % idx_base
+
+        info[idx_base] = {"dataset_name": "dataset_%i" % idx_base,
+                          "dataset_path": output_data_folder + "dataset_%i" % idx_base,
+                          "dataset_train": tuples_train,
+                          "dataset_test": tuples_test,
+                          "question_token": vocab["question_token_to_idx"],
+                          "positive_combinations_train": n_tuples_train_p,
+                          "negative_combinations_train": n_tuples_train_n,
+                          "positive_combinations_test": n_tuples_test_p,
+                          "negative_combinations_test": n_tuples_test_n}
+
+        with open(info_path, 'w') as f:
+            json.dump(info, f)
 
     generate_data_matrix(n_train,
                          vocab["question_token_to_idx"],
@@ -681,13 +723,18 @@ def generate_data_file(output_data_folder,
                          tuples_test,
                          path_output_folder=dataset_path_,
                          path_original_file=splits_folder,
-                         flag_program=False)
+                         flag_program=False,
+                         test_seen=test_seen)
     return
 
 
-def build_mapping(path_data):
+def build_mapping(path_data, on_seen=False):
     split_list = ["train", "valid", "test"]
     for split_ in split_list:
+        if on_seen and split_ == 'train':
+            continue
+        elif on_seen:
+            split_ = "in_distr_%s" % split_
         attributes = np.load(join(path_data, "attributes_%s.npy" % split_))
         dct = {}
         question_ = np.array([], dtype=int)

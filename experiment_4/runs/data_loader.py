@@ -1,4 +1,6 @@
 import io
+import os
+import h5py
 from PIL import Image
 import torch
 import numpy as np
@@ -6,6 +8,7 @@ from os.path import join
 from torch.utils.data import Dataset, DataLoader
 
 PATH_SQOOP_DATASET = "/om/user/vanessad/understanding_reasoning/experiment_4/data_generation/sysgen_sqoop/sqoop_variety_1"
+
 
 def _dataset_to_tensor(dset, mask=None, dtype=None):
     arr = np.asarray(dset, dtype=np.int64 if dtype is None else dtype)
@@ -21,11 +24,15 @@ class DataTorch(Dataset):
                  all_feats,
                  all_questions,
                  all_labels,
-                 convertPIL=False):
+                 convertPIL=False,
+                 h5_file=False):
         self.all_questions = all_questions
         self.all_labels = all_labels
         self.all_feats = all_feats
+        if h5_file:
+            self.all_feats = all_feats['features']
         self.convertPIL = convertPIL
+        self.h5_file = h5_file
 
     def __getitem__(self, index):
         """Generates one sample of data
@@ -63,17 +70,29 @@ class DataTorchLoader(DataLoader):
 
         all_questions = _dataset_to_tensor(np.load(join(path_data, questions_file)))
         all_labels = _dataset_to_tensor(np.load(join(path_data, answers_file)))
-        try:
-            all_feats = np.load(join(path_data, "feats_%s.npy" % split))
-        except:
-            all_feats = np.load(join(path_data, "feats_%s.npy" % split), allow_pickle=True)
-        if np.ndim(all_feats) == 3:
-            n, dim_x, dim_y = all_feats.shape
-            all_feats = all_feats.reshape(n, 1, dim_x, dim_y)
+
+        files_feats = [f_ for f_ in os.listdir(path_data) if f_.startswith('feats_%s' % split)]
+        if len(files_feats) > 1:
+            raise ValueError('Ambiguity in reading the feature file')
+        ext = files_feats[0].split('.')[-1]
+        if ext == 'npy':
+            h5_file = False
+            try:
+                all_feats = np.load(join(path_data, "feats_%s.npy" % split))
+            except:
+                all_feats = np.load(join(path_data, "feats_%s.npy" % split), allow_pickle=True)
+            if np.ndim(all_feats) == 3:
+                n, dim_x, dim_y = all_feats.shape
+                all_feats = all_feats.reshape(n, 1, dim_x, dim_y)
+        elif ext == 'hdf5':
+            h5_file = True
+            all_feats = h5py.File(join(path_data, 'feats_%s.hdf5' % split), 'r')
+        else:
+            raise ValueError('File extension not recognized')
 
         convertPIL = opt.dataset.dataset_id_path == PATH_SQOOP_DATASET
         # TODO: change here, pass the argument
-        self.dataset = DataTorch(all_feats, all_questions, all_labels, convertPIL=convertPIL)
+        self.dataset = DataTorch(all_feats, all_questions, all_labels, convertPIL=convertPIL, h5_file=h5_file)
         # shuffle_data = True if split == "train" else False
         shuffle_data = True
         super(DataTorchLoader, self).__init__(self.dataset,

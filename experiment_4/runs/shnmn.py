@@ -752,7 +752,7 @@ class SHNMN(nn.Module):
                 else:
                     raise ValueError('Separated classifier not implemented')
 
-            elif self.num_modules == 3: 
+            elif self.num_modules == 3:
 
                 if self.use_module == 'find':
                     classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_].unsqueeze(0))
