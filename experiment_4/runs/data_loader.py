@@ -25,23 +25,23 @@ class DataTorch(Dataset):
                  all_questions,
                  all_labels,
                  convertPIL=False,
-                 h5_file=False):
+                 split_files=False):
         self.all_questions = all_questions
         self.all_labels = all_labels
         self.all_feats = all_feats
-        if h5_file:
-            self.all_feats = all_feats['features']
         self.convertPIL = convertPIL
-        self.h5_file = h5_file
+        self.split_files = split_files
 
     def __getitem__(self, index):
         """Generates one sample of data
         :param index: index for pick one example"""
-        input_ = self.all_feats[index]
+        if self.split_files:
+            input_ = np.load(join(self.all_feats, '%i.npy' % index))
+        else:
+            input_ = self.all_feats[index]
         if not self.convertPIL:
             feat = torch.FloatTensor(input_.astype(np.float32))
         else:
-            # print("convertPIL is true")
             feat = torch.FloatTensor(np.array(Image.open(io.BytesIO(input_))).transpose(2, 0, 1) / 255.0)
             # print(feat.shape)
         question = self.all_questions[index]
@@ -74,9 +74,9 @@ class DataTorchLoader(DataLoader):
         files_feats = [f_ for f_ in os.listdir(path_data) if f_.startswith('feats_%s' % split)]
         if len(files_feats) > 1:
             raise ValueError('Ambiguity in reading the feature file')
-        ext = files_feats[0].split('.')[-1]
-        if ext == 'npy':
-            h5_file = False
+
+        if files_feats[0].endswith('npy'):
+            split_files = False
             try:
                 all_feats = np.load(join(path_data, "feats_%s.npy" % split))
             except:
@@ -84,16 +84,13 @@ class DataTorchLoader(DataLoader):
             if np.ndim(all_feats) == 3:
                 n, dim_x, dim_y = all_feats.shape
                 all_feats = all_feats.reshape(n, 1, dim_x, dim_y)
-        elif ext == 'hdf5':
-            h5_file = True
-            all_feats = h5py.File(join(path_data, 'feats_%s.hdf5' % split), 'r')
         else:
-            raise ValueError('File extension not recognized')
+            split_files = True
+            all_feats = join(path_data, 'feats_%s' % split)
 
         convertPIL = opt.dataset.dataset_id_path == PATH_SQOOP_DATASET
         # TODO: change here, pass the argument
-        self.dataset = DataTorch(all_feats, all_questions, all_labels, convertPIL=convertPIL, h5_file=h5_file)
-        # shuffle_data = True if split == "train" else False
+        self.dataset = DataTorch(all_feats, all_questions, all_labels, convertPIL=convertPIL, split_files=split_files)
         shuffle_data = True
         super(DataTorchLoader, self).__init__(self.dataset,
                                               batch_size=opt.hyper_opt.batch_size,

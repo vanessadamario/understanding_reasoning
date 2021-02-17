@@ -139,9 +139,8 @@ def _shnmn_func(question, img, num_modules, alpha, tau_0, tau_1, func):
 
             if type(func) is list and len(func) == 3:
                 # asymmetric residual, mixed find, mixed architectures
-
                 question_indexes = [0, 2, 1]
-                question_rep = question[question_indexes[i]]  # check
+                question_rep = question[question_indexes[i]]  # TODO: check this
                 func_ = func[question_indexes[i]]
                 # else:
                 #     question_indexes = [0, 2, 1]
@@ -340,11 +339,11 @@ class SHNMN(nn.Module):
         print("image pair: ", self.image_pair)
         print(type(self.image_pair))
 
-        if self.separated_stem:
-            # if the specialization is at the beginning
-            # we will have it in all the architecture
-            self.separated_module = True
-            self.separated_classifier = True
+        # if self.separated_stem:
+        #     # if the specialization is at the beginning
+        #     # we will have it in all the architecture
+        #     self.separated_module = True
+        #     self.separated_classifier = True
 
         from runs.data_attribute_random import vocab as vocab_sqoop
         from runs.data_comparison_relations import vocab as vocab_attribute_sqoop
@@ -680,7 +679,7 @@ class SHNMN(nn.Module):
                 if self.num_modules == 3:
                     stemmed_img_lhs = self.stem(image[:, 0]).unsqueeze(1)
                     stemmed_img_rhs = self.stem(image[:, 1]).unsqueeze(1)
-                    print(stemmed_img_lhs.shape)
+                    #  print(stemmed_img_lhs.shape)
                     stemmed_img = [stemmed_img_lhs, stemmed_img_rhs]
                 else:
                     raise ValueError("Pair of images with n_modules != 3 not implemented")
