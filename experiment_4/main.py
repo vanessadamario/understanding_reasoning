@@ -136,6 +136,14 @@ def convert_h5_to_np(id):
     hdf5_to_single_numpy(id, output_data_folder)
 
 
+def shaping(id):
+    from runs.pilot_shaping import run_pilot
+    opt = experiments.get_experiment(output_path, id)  # Experiment instance
+    path_starting_model = run_pilot(opt)
+    print(path_starting_model)
+    # from runs.train import check_and_train
+    # check_and_train(opt, output_path, path_starting_model)
+
 switcher = {
     'train': run_train,
     'gen_data': generate_data,
@@ -143,7 +151,8 @@ switcher = {
     'update': update_json,
     'test': run_test,
     'gen_query': generate_query,
-    'convert': convert_h5_to_np
+    'convert': convert_h5_to_np,
+    'shaping': shaping
 }
 
 switcher[FLAGS.run](FLAGS.experiment_index + FLAGS.offset_index)
