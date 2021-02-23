@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-. ${WORK_HOME}/configure_runtime.sh
+. configure_runtime.sh
 
 REDIS_PORT=${HEAD_PORT}
 

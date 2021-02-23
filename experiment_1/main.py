@@ -34,18 +34,10 @@ FLAGS = parser.parse_args()
 print("test oos", FLAGS.test_oos)
 print("dense", FLAGS.dense)
 
-# TODO DELETE: test
 # where to save and retrieve the experiments
-# output_path = {
-#     'om2': '/om2/user/vanessad/understanding_reasoning/experiment_1',
-#     'om': '/om/user/vanessad/understanding_reasoning/experiment_1',
-#     'vanessa': '/Users/vanessa/src/understanding_reasoning/experiment_1'}[FLAGS.host_filesystem]
-# output_path = join(output_path, 'results/')
-#print(output_path)
+output_path = join(FLAGS.output_path, 'results/')
 PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_1/data_generation/MNIST_splits"
 
-output_path = FLAGS.output_path
-# output_path = '/om2/user/vanessad/understanding_reasoning/experiment_1/test_early_stopping/'
 print(output_path)
 os.makedirs(output_path, exist_ok=True)
 
