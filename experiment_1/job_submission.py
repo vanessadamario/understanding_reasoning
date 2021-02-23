@@ -12,6 +12,7 @@ import time
 from prettytable import PrettyTable
 from reprint import output
 import signal
+import subprocess
 
 @ray.remote(num_gpus=0.3)
 def act(task, idx, work_dir):
@@ -140,10 +141,26 @@ def submit_job(multi_cmds, exps, wrk_path):
     rets = [act.remote(multi_cmds[i], exps[i], wrk_path) for i in range(len(exps))]
     return rets
 
+def get_progress(tag):
+    fname = 'results/' + tag + '/model.json'
+    fp = Path(fname)
+    if fp.exists():
+        with open(fname, 'r') as f:
+            d = json.load(f)
+        completion = str(round((d['model_t'] / d['optimization_kwargs']['num_iterations']) * 100, 2)) + '%'
+        score = d['best_val_acc']
+        return completion, score
+    else:
+        print("No file existing:", fname)
+        return '0%', '0'
+
 def mainrun(argv):
+
 
     # Parse the command line arguements
     exps, command, wrk_path = getargs(argv)
+
+    gp = subprocess.Popen(['python', '../scripts/dash_app.py', str(wrk_path)])
 
     multi_cmds = get_multi_commands(command, exps)
 
@@ -179,24 +196,32 @@ def mainrun(argv):
             dash_data['info'] = {}
             dash_data['info']['Tag'] = []
             dash_data['info']['Status'] = []
+            dash_data['info']['Progress'] = []
+            dash_data['info']['BestValAcc'] = []
             dash_data['info']['Elapsed Time'] = []
 
             x = PrettyTable()
             x.title = 'Job Status - ' + str(datetime.now().strftime("%Y.%m.%d - %H:%M:%S%p"))
-            x.field_names = ['Tag', 'Status', 'Elapsed Time']
+            x.field_names = ['Tag', 'Status', 'Progress', 'Best Val Acc', 'Elapsed Time']
             for i in range(len(rets)):
                 obj = rets[i]
-                tagname = 'expIdx' + '_' + str(exps[i])
+                tagname = 'train' + '_' + str(exps[i])
                 if(obj in rd):
                     dash_data['info']['Tag'].append(tagname)
                     dash_data['info']['Status'].append('Finished')
+                    c, a = get_progress(tagname)
+                    dash_data['info']['Progress'].append('100%')
+                    dash_data['info']['BestValAcc'].append(a)
                     dash_data['info']['Elapsed Time'].append(str(et[i]))
-                    x.add_row([tagname, "Finished", str(et[i])])
+                    x.add_row([tagname, "Finished", '100%', a, str(et[i])])
                 if(obj in nrd):
                     dash_data['info']['Tag'].append(tagname)
                     dash_data['info']['Status'].append('In Progress...')
+                    c, a = get_progress(tagname)
+                    dash_data['info']['Progress'].append(c)
+                    dash_data['info']['BestValAcc'].append(a)
                     dash_data['info']['Elapsed Time'].append(str(et[i]))
-                    x.add_row([tagname, "In Progress...", str(et[i])])
+                    x.add_row([tagname, "In Progress...", c, a, str(et[i])])
 
             with open(wrk_path + '/progress.json', 'w') as f:
                 json.dump(dash_data, f, indent=4)

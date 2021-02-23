@@ -11,6 +11,7 @@ import logging
 from datetime import datetime
 import pandas as pd
 import json
+from pathlib import Path
 
 global progress_file
 
@@ -106,7 +107,11 @@ def update_table(n):
 if __name__ == '__main__': 
 
     global progress_file
-    progress_file = sys.argv[1]
+    progress_file = sys.argv[1] + '/progress.json'
+    fp = Path(progress_file)
+    while not fp.exists():
+        time.sleep(1)
+
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
     dash_port = 42125
     app.run_server(port = dash_port)

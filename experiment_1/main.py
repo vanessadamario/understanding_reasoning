@@ -6,8 +6,7 @@ import sys
 import argparse
 from os.path import join
 from runs import experiments
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
-
+from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_index', type=int, required=True)
@@ -28,14 +27,13 @@ parser.add_argument('--data_folder', type=str, required=False, default=None)
 parser.add_argument('--host_filesystem', type=str, required=True)
 parser.add_argument('--run', type=str, required=True)
 parser.add_argument('--on_validation', type=bool, required=False, default=False)
-parser.add_argument('--output_path', type=str, required=False)  # TODO: eliminate this
 
 FLAGS = parser.parse_args()
 print("test oos", FLAGS.test_oos)
 print("dense", FLAGS.dense)
 
 # where to save and retrieve the experiments
-output_path = join(FLAGS.output_path, 'results/')
+output_path = join(Path(__file__).parent.absolute(), 'results/')
 PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_1/data_generation/MNIST_splits"
 
 print(output_path)
