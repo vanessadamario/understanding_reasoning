@@ -40,10 +40,12 @@ def act(task, idx, work_dir):
         for f in files:
             os.remove(f)
 
-    log_redirection = " 2>&1 > " +  log_path + "/log.txt"
+    log_redirection = " 2>&1 | ts '<" + tag + ">' | ts '[" + hostname + "]' | ts '[%Y-%m-%d %H:%M:%S]' | multilog s10000000 n2 " + log_path
     path_movement = 'cd ' + work_dir + '; '
 
-    ret = os.system(path_movement + '/bin/bash -c "set -o pipefail; ' + task + log_redirection + '"')
+    singularity_head = ' singularity exec --nv ' + '/om5/user/gpillai/vqa-runtime.simg'
+
+    ret = os.system(path_movement + singularity_head + ' /bin/bash -c "set -o pipefail; ' + task + log_redirection + '"')
 
     if(ret != 0):
         py_error = int(bin(ret)[2:-8], 2)
