@@ -14,7 +14,7 @@ from reprint import output
 import signal
 import subprocess
 
-@ray.remote(num_gpus=0.3)
+@ray.remote(num_gpus=0.5)
 def act(task, idx, work_dir):
     import subprocess
     import os
@@ -145,13 +145,15 @@ def get_progress(tag):
     fname = 'results/' + tag + '/model.json'
     fp = Path(fname)
     if fp.exists():
-        with open(fname, 'r') as f:
-            d = json.load(f)
-        completion = str(round((d['model_t'] / d['optimization_kwargs']['num_iterations']) * 100, 2)) + '%'
-        score = d['best_val_acc']
-        return completion, score
+        try:
+            with open(fname, 'r') as f:
+                d = json.load(f)
+            completion = str(round((d['model_t'] / d['optimization_kwargs']['num_iterations']) * 100, 2)) + '%'
+            score = d['best_val_acc']
+            return completion, score
+        except:
+            return '0%', '0'
     else:
-        print("No file existing:", fname)
         return '0%', '0'
 
 def mainrun(argv):
