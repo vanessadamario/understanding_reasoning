@@ -4,7 +4,7 @@ import sys
 from runs.data_loader import DataTorchLoader
 
 
-def check_and_train(opt, output_path, load=False, path_shaping=None):
+def check_and_train(opt, output_path, load=False, shaping=False, path_shaping=None):
     """ Check if the experiments has already been performed.
     If it is not, train otherwise retrieve the path relative to the experiment.
     :param opt: Experiment instance. It contains the output path for the experiment
@@ -43,7 +43,7 @@ def check_and_train(opt, output_path, load=False, path_shaping=None):
     # TODO 2: we need to call the train_loop function
 
     from runs.train_loop import train_loop
-    train_loop(opt, train_loader, valid_loader, load, path_shaping)
+    train_loop(opt, train_loader, valid_loader, load, shaping, path_shaping)
     # here training must happen
 
     # we write an empty *.txt file with the completed experiment

@@ -23,22 +23,33 @@ def save_weights(opt):
     if opt.hyper_method.separated_stem:
         dict_stem = {}
         for k_ in model[0].stem.keys():  # for each key (red, green, etc)
+            # print('key: ', k_)
             list_stem_transf = []
             for layer in model[0].stem[k_]:
-                try:
-                    list_stem_transf.append(layer.weight)
-                except:
+                # print(layer)
+                if isinstance(layer, torch.nn.BatchNorm2d):
+                    list_stem_transf.append([layer.running_mean, layer.running_var])
+                elif isinstance(layer, torch.nn.Conv2d):
+                    list_stem_transf.append([layer.weight, layer.bias])
+                elif isinstance(layer, torch.nn.ReLU) or isinstance(layer, torch.nn.MaxPool2d):
                     list_stem_transf.append([])
+                else:
+                    raise ValueError('Instance type not recognized')
             dict_stem[k_] = list_stem_transf
         torch.save(dict_stem,
                    join(opt.output_path, 'stem'))
+
     else:
         list_stem_transf = []
         for layer in model[0].stem:
-            try:
-                list_stem_transf.append(layer.weight)
-            except:
+            # print(layer)
+            if isinstance(layer, torch.nn.BatchNorm2d):
+                list_stem_transf.append([layer.running_mean, layer.running_var])
+            elif isinstance(layer, torch.nn.Conv2d):
+                list_stem_transf.append([layer.weight, layer.bias])
+            elif isinstance(layer, torch.nn.ReLU) or isinstance(layer, torch.nn.MaxPool2d):
                 list_stem_transf.append([])
+            else:
+                raise ValueError('Instance type not recognized')
         torch.save(list_stem_transf,
                    join(opt.output_path, 'stem'))
-

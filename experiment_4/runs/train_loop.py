@@ -27,7 +27,11 @@ def get_execution_engine(**kwargs):
     #             args.execution_engine_start_from, model_type=args.model_type)
     print(kwargs)
     load_last = True
+    print('shaping flags')
+    print(kwargs['shaping'])
+    print(kwargs['path_shaping'])
     if kwargs['load_model']:
+        # if we load we do not care about path shaping anymore
         print("Loading model")
         files = os.listdir(kwargs['output_path'])
         load_last = 'model' in files  # TODO:
@@ -37,6 +41,7 @@ def get_execution_engine(**kwargs):
         else:  # early stopping
             ee, kwargs = load_execution_engine(join(kwargs['output_path'], 'model.best'),
                                                model_type="SHNMN")
+            # save the kwargs shaping in the model and check that it exists
         print(kwargs)
     else:
         # ee = torch.jit.script(SHNMN(**kwargs))
@@ -103,7 +108,7 @@ def check_accuracy(opt, execution_engine, loader, test=False):
     return acc
 
 
-def train_loop(opt, train_loader, val_loader, load=False):
+def train_loop(opt, train_loader, val_loader, load=False, shaping=False, path_shaping=None):
     print("We load the model: ", load)
     init_training = time.time()
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
@@ -119,6 +124,8 @@ def train_loop(opt, train_loader, val_loader, load=False):
     kkwargs_exec_engine_ = opt.hyper_method.__dict__
     kkwargs_exec_engine_["vocab"] = vocab
     kkwargs_exec_engine_["load_model"] = load
+    kkwargs_exec_engine_["shaping"] = shaping
+    kkwargs_exec_engine_["path_shaping"] = path_shaping
     if load:
         kkwargs_exec_engine_["output_path"] = opt.output_path
 
@@ -136,7 +143,13 @@ def train_loop(opt, train_loader, val_loader, load=False):
         sensitive_parameters = []
         logger.info("PARAMETERS:")
         for name, param in execution_engine.named_parameters():
+            print(name)
+            if name == 'question_embeddings.weight':
+                print('here')
+                # continue
             if not param.requires_grad:
+                print('no gradient', name)
+                print('\n')
                 continue
             logger.info(name)
             if name.startswith('tree_odds') or name.startswith('alpha'):
@@ -215,6 +228,8 @@ def train_loop(opt, train_loader, val_loader, load=False):
         print(len(stats['val_accs']), len(stats['val_accs_ts']), stats['val_accs_ts'][-1])
     else:
         print(stats)
+    print("Start training")
+    sys.stdout.flush()
 
     while t < max_iterations:  # this is the number of steps in tf
         epoch += 1
@@ -231,15 +246,16 @@ def train_loop(opt, train_loader, val_loader, load=False):
         batch_start_time = time.time()
 
         for batch in train_loader:
+            # print("Starting a new batch")
+            sys.stdout.flush()
             t += 1
-
             (feats, questions, answers) = batch
             if isinstance(questions, list):
                 questions = questions[0]
             questions_var = Variable(questions.to(device))
             feats_var = Variable(feats.to(device))
             answers_var = Variable(answers.to(device))
-
+            time1 = time.time()
             if opt.method_type in ['SimpleNMN', 'SHNMN']:
                 # Train execution engine with ground-truth programs
                 ee_optimizer.zero_grad()
@@ -280,7 +296,6 @@ def train_loop(opt, train_loader, val_loader, load=False):
                 # sys.stdout.flush()
             # print("time scores by ee", time.time() - time_i__)
             ee_optimizer.step()
-
             # time_e__ = time.time()
             # print("TIME SINGLE BATCH: ")
             # sys.stdout.flush()
@@ -296,6 +311,8 @@ def train_loop(opt, train_loader, val_loader, load=False):
                 logger.info("{} {:.5f} {:.5f} {:.5f}".format(t,
                                                              time.time() - batch_start_time, time.time() - compute_start_time,
                                                              loss.item()))
+                print(execution_engine.__dict__.keys())
+                print(execution_engine._modules['question_embeddings'].weight)
                 stats['train_losses'].append(avg_loss)
                 stats['train_losses_ts'].append(t)
                 if reward is not None:

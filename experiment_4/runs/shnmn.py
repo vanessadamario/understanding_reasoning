@@ -3,6 +3,7 @@ import numpy
 import math
 import torch
 import numpy as np
+from os.path import join
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
@@ -339,6 +340,13 @@ class SHNMN(nn.Module):
         print("image pair: ", self.image_pair)
         print(type(self.image_pair))
 
+        try:
+            self.shaping = kwargs['shaping']
+        except:
+            self.shaping = False
+
+        print('shaping in shnmn', self.shaping)
+
         # if self.separated_stem:
         #     # if the specialization is at the beginning
         #     # we will have it in all the architecture
@@ -454,8 +462,9 @@ class SHNMN(nn.Module):
             self.question_embeddings = nn.Embedding(len(vocab['question_idx_to_token']), 2*embedding_dim_1+embedding_dim_2)
             self.question_embeddings.weight.data = torch.cat([question_embeddings_a.weight.data, question_embeddings_b.weight.data,
                                                               question_embeddings_2.weight.data],dim=-1)
-            self.func = ResidualFunc(module_dim, module_kernel_size)
 
+            # print(self.question_embeddings)
+            self.func = ResidualFunc(module_dim, module_kernel_size)
         # TODO new code
         # TODO elif use_module == "find" and self.separated_module:
             # TODO self.func = nn.ModuleDict({str(k_): FindModule(module_dim, module_kernel_size) for k_ in range(4)})
@@ -586,6 +595,7 @@ class SHNMN(nn.Module):
             tmp = self.stem(Variable(torch.zeros([1, feature_dim[0],
                                                   feature_dim[1],
                                                   feature_dim[2]])))
+
         print("feature dims")
         sys.stdout.flush()
         print(feature_dim[0], feature_dim[1], feature_dim[2])
@@ -627,6 +637,153 @@ class SHNMN(nn.Module):
         tree_odds = -numpy.log((1 - p) / p)
         self.tree_odds = nn.Parameter(torch.Tensor([tree_odds]))
         self.h = None
+
+        # print(self.question_embeddings.weight)
+        if self.shaping:
+
+            stem_ = torch.load(join(kwargs['path_shaping'], 'stem'))
+            # print(stem_)
+            # print(len(stem_))
+            # print('\nStem as in list')
+            # print([len(s_) for s_ in stem_])
+
+            # print('\nStem in the model')
+            # print(self.stem)
+            # for i in range(20):
+            # print(self.stem[i])
+
+            # print('\n\n')
+            # print(len(stem_))
+            # print("we're printing stems")
+            # print(self.stem)
+            # print('\n\n')
+
+            if self.separated_stem:
+                for k_ in stem_.keys():
+                    for i, (params, new_params), in enumerate(zip(stem_[k_], self.stem[k_])):
+                        # print(self.stem[k_])
+                        # print(self.stem[k_][0])
+                        if isinstance(new_params, torch.nn.BatchNorm2d):
+                            self.stem[k_][i].running_mean = params[0]
+                            self.stem[k_][i].running_var = params[1]
+                            self.stem[k_][i].running_mean.requires_grad = False
+                            self.stem[k_][i].running_var.requires_grad = False
+                            self.stem[k_][i].weight.requires_grad = False
+                            self.stem[k_][i].bias.requires_grad = False
+                            self.stem[k_][i].eval()
+
+                        elif isinstance(new_params, torch.nn.Conv2d):
+                            self.stem[k_][i].weight = params[0]
+                            self.stem[k_][i].weight.requires_grad = False
+
+                            if new_params.bias is not None:
+                                self.stem[k_][i].bias = params[1]
+                                self.stem[k_][i].bias.requires_grad = False
+
+                        elif isinstance(new_params, torch.nn.MaxPool2d) or isinstance(new_params, torch.nn.ReLU):
+                            pass
+                            # print(new_params)
+                        else:
+                            raise ValueError('This instance has not been considered')
+
+            else:
+                for i, (params, new_params), in enumerate(zip(stem_, self.stem)):
+                    # print(new_params)
+                    if isinstance(new_params, torch.nn.BatchNorm2d):
+                        self.stem[i].running_mean = params[0]
+                        self.stem[i].running_var = params[1]
+                        self.stem[i].running_mean.requires_grad = False
+                        self.stem[i].running_var.requires_grad = False
+                        self.stem[i].weight.requires_grad = False
+                        self.stem[i].bias.requires_grad = False
+                        self.stem[i].eval()
+
+                    elif isinstance(new_params, torch.nn.Conv2d):
+                        self.stem[i].weight = params[0]
+                        self.stem[i].weight.requires_grad = False
+
+                        if new_params.bias is not None:
+                            self.stem[i].bias = nn.Parameter(params[1])
+                            self.stem[i].bias.requires_grad = False
+
+                    elif isinstance(new_params, torch.nn.MaxPool2d) or isinstance(new_params, torch.nn.ReLU):
+                        pass
+                        # print(new_params)
+                    else:
+                        raise ValueError('This instance has not been considered')
+
+            # initialization with shaping
+            if use_module == 'find':
+                func_ = torch.load(join(kwargs['path_shaping'], 'func'))
+
+                if separated_module:
+                    for k_ in func_.keys():
+                        self.func[k_] = func_[k_]
+                        print(self.func[k_])
+
+                        self.func[k_].conv_1.weight.requires_grad = False
+                        self.func[k_].conv_1.bias.requires_grad = False
+
+                        self.func[k_].conv_2.weight.requires_grad = False
+                        self.func[k_].conv_2.bias.requires_grad = False
+
+                else:
+                    self.func.conv_1.weight.requires_grad = False
+                    self.func.conv_1.bias.requires_grad = False
+
+                    self.func.conv_2.weight.requires_grad = False
+                    self.func.conv_2.bias.requires_grad = False
+
+            # print(self.func.conv_1.weight.requires_grad)
+            #  return
+            embedding_ = torch.load(join(kwargs['path_shaping'], 'embedding_weights'))
+            embedding_ = embedding_.to(device)
+
+            n_emb = embedding_.shape[0]
+            self.question_embeddings.weight.data[:n_emb] = embedding_
+            # embedding_shape = self.question_embeddings.weight.shape[1]
+            # print('\n\nEMBEDDING')
+            # print(embedding_)
+            # print(self.question_embeddings.weight)
+            # self.question_embedding_attribute = nn.Embedding(n_emb, embedding_shape)  # trained
+            # self.question_embedding_comparison = nn.Embedding(len(vocab['question_idx_to_token']) - n_emb,
+            #                                                   embedding_shape)
+
+            # self.question_embedding = torch.cat([self.question_embedding_attribute,
+            #                                      self.question_embedding_comparison])
+            # self.question_embeddings.weight.requires_grad = False
+
+            self.question_embeddings.weight[:n_emb].detach()
+            # self.question_embeddings.weight.requires_grad = False
+            # RuntimeError: you can only change requires_grad flags of leaf variables.
+            # If you want to use a computed variable in a subgraph that doesn't require
+            # differentiation use var_no_grad = var.detach().
+
+            # in train_loop, because question_embeddings.weight.require_grad is still True
+            # ValueError: can't optimize a non-leaf Tensor
+
+            # self._modules['question_embeddings'].weight[:n_emb].detach()
+
+            self.register_buffer('learnable_mask',
+                                 (torch.arange(len(vocab['question_token_to_idx'])).unsqueeze(1) >= n_emb).float())  # could be more flexible
+
+        """
+        if self.use_module == 'find':
+            if self.separated_module:
+                for i in enumerate(self.func):
+                    self._modules['func']['%i' % i].conv_1.weight.detach()  # ['conv_1']
+                    self._modules['func']['%i' % i].conv_1.bias.detach()  # ['conv_1']
+
+                    self._modules['func']['%i' % i].conv_2.weight.detach()  # ['conv_1']
+                    self._modules['func']['%i' % i].conv_2.bias.detach()  # ['conv_1']
+
+            else:
+                self._modules['func'].conv_1.weight.detach()
+                self._modules['func'].conv_1.bias.detach()  # ['conv_1']
+
+                self._modules['func'].conv_2.weight.detach()
+                self._modules['func'].conv_2.bias.detach()  # ['conv_1']
+        """
 
     def forward_hard(self, image, question):
         question = self.question_embeddings(question)
@@ -723,7 +880,10 @@ class SHNMN(nn.Module):
                         self.question_embeddings_Y(question[:, 2])]
         else:
             question = self.question_embeddings(question)
-        # print('question shape', question.shape)
+            if self.shaping:
+                def zero_grad_fixed(gr):
+                    return gr * self.learnable_mask
+                self.question_embeddings.weight.register_hook(zero_grad_fixed)
 
         # GENERATE MODULE AND HIDDEN REPRESENTATION
         # here depending on the question, the self.func we call is different

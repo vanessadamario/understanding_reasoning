@@ -5,7 +5,7 @@ import os
 import argparse
 from os.path import join
 from runs import experiments
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 
 
 parser = argparse.ArgumentParser()
@@ -141,8 +141,12 @@ def shaping(id):
     opt = experiments.get_experiment(output_path, id)  # Experiment instance
     path_starting_model = run_pilot(opt)
     print(path_starting_model)
-    # from runs.train import check_and_train
-    # check_and_train(opt, output_path, path_starting_model)
+    from runs.train import check_and_train
+    check_and_train(opt,
+                    output_path,
+                    load=FLAGS.load_model,
+                    shaping=True,
+                    path_shaping=path_starting_model)
 
 switcher = {
     'train': run_train,
