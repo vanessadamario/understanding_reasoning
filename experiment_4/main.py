@@ -17,6 +17,8 @@ parser.add_argument('--variety', type=int, required=False)
 parser.add_argument('--split', type=list, required=False, default=None)
 parser.add_argument('--output_folder', type=str, required=False, default="results")
 parser.add_argument('--dataset_name', type=str, required=False, default=None)
+parser.add_argument('--single_image', type=bool, required=False, default=True)
+parser.add_argument('--spatial_only', type=bool, required=False, default=False)
 parser.add_argument('--load_model', type=bool, required=False, default=False)
 parser.add_argument('--root_data_folder', type=str, required=False, default=None)
 parser.add_argument('--host_filesystem', type=str, required=True)
@@ -55,6 +57,8 @@ def generate_data(id):
                 DG = DataGenerator(PATH_MNIST_SPLIT,
                                    variety=FLAGS.variety,
                                    image_size=64,
+                                   spatial_only=FLAGS.spatial_only,
+                                   single_image=True,
                                    gen_in_distr_test=FLAGS.test_seen)
             elif FLAGS.host_filesystem == 'om2_exp2':
                 from runs.data_comparison_relations import RELATIONS_DICT_EXP2
@@ -62,7 +66,6 @@ def generate_data(id):
                 DG = DataGenerator(PATH_MNIST_SPLIT,
                                    variety=FLAGS.variety,
                                    image_size=28,
-                                   relations=RELATIONS_DICT_EXP2,
                                    single_image=False,
                                    gen_in_distr_test=FLAGS.test_seen)
 

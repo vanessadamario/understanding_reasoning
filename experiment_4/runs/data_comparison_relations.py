@@ -6,7 +6,7 @@ from PIL import Image
 from functools import reduce
 from os.path import join
 import pickle
-import matplotlib.pyplot as plt
+
 
 MNIST_DIGITS = [str(k_) for k_ in np.arange(10)]
 color_dict = {'red': [1, 0, 0],
@@ -35,41 +35,100 @@ RELATIONS = ["same_size", "different_size", "smaller", "larger",
 ATTRIBUTES_DICT = {k_: i_ for i_, k_ in enumerate(ATTRIBUTES)}
 RELATIONS_DICT = {k_: i_+len(ATTRIBUTES) for i_, k_ in enumerate(RELATIONS)}
 RELATIONS_DICT_EXP2 = {k_: i_+len(ATTRIBUTES) for i_, k_ in enumerate(RELATIONS[:-4])}
+RELATIONS_SPATIAL_ONLY = {k_: i_+len(ATTRIBUTES) for i_, k_ in enumerate(RELATIONS[-4:])}
 
-vocab = {}
-vocab["all_questions_token_to_idx"] = ATTRIBUTES_DICT.copy()
-vocab["all_questions_token_to_idx"].update(RELATIONS_DICT.copy())
-vocab["question_token_to_idx"] = vocab["all_questions_token_to_idx"].copy()
+# vocab = {}
+# vocab["all_questions_token_to_idx"] = ATTRIBUTES_DICT.copy()
+# vocab["all_questions_token_to_idx"].update(RELATIONS_DICT.copy())
+# vocab["question_token_to_idx"] = vocab["all_questions_token_to_idx"].copy()  # FIXME
 
-vocab["answer_token_to_idx"] = {"true": 1, "false": 0}
+# vocab["answer_token_to_idx"] = {"true": 1, "false": 0}
 
 category_idx = [k_ for k_ in range(10)]
 color_idx = [k_ for k_ in range(10, 15)]
 brightness_idx = [k_ for k_ in range(15, 18)]
 size_idx = [k_ for k_ in range(18, 21)]
 
-q_size_idx = [k_ for k_ in range(21, 25)]
-q_color_idx = [k_ for k_ in range(25, 27)]
-q_category_idx = [k_ for k_ in range(27, 29)]
-q_brightness_idx = [k_ for k_ in range(29, 33)]
-q_spatial_rel_idx = [k_ for k_ in range(33, 37)]
+# q_size_idx = [k_ for k_ in range(21, 25)]
+# q_color_idx = [k_ for k_ in range(25, 27)]
+# q_category_idx = [k_ for k_ in range(27, 29)]
+# q_brightness_idx = [k_ for k_ in range(29, 33)]
+# q_spatial_rel_idx = [k_ for k_ in range(33, 37)]
 
 
-def map_question_idx_to_group(idx):
+def generate_vocab(single_image=False, spatial_only=False):
+    """ Experiment type.
+    If single_image, spatial_only is false
+    spatial_only
+    single_image
+    """
+    vocab = {}
+
+    vocab["all_questions_token_to_idx"] = ATTRIBUTES_DICT.copy()
+    if (not single_image) and spatial_only:
+        raise ValueError('Impossible spatial relation between separated objects.')
+    if not single_image:
+        vocab["all_questions_token_to_idx"].update(RELATIONS_DICT_EXP2.copy())
+    elif spatial_only:
+        vocab["all_questions_token_to_idx"].update(RELATIONS_SPATIAL_ONLY.copy())
+    else:
+        vocab["all_questions_token_to_idx"].update(RELATIONS_DICT.copy())
+
+    vocab["question_token_to_idx"] = vocab["all_questions_token_to_idx"].copy()  # FIXME
+    vocab["answer_token_to_idx"] = {"true": 1, "false": 0}
+
+    return vocab
+
+
+def generate_list(single_image=False, spatial_only=False):
+    if (not single_image) and spatial_only:
+        raise ValueError('Impossible spatial relation between separated objects.')
+    count = len(category_idx) + len(color_idx) + len(brightness_idx) + len(size_idx)
+
+    if spatial_only:
+        q_spatial_rel_idx = [k_ for k_ in range(count, count + len(RELATIONS_SPATIAL_ONLY))]
+        return q_spatial_rel_idx
+
+    elif not single_image:
+        q_size_idx = [k_ for k_ in range(4, 8)]
+        q_color_idx = [k_ for k_ in range(8, 10)]
+        q_category_idx = [k_ for k_ in range(10, 12)]
+        q_brightness_idx = [k_ for k_ in range(12, 16)]
+        return q_size_idx, q_color_idx, q_category_idx, q_brightness_idx
+    else:
+        q_size_idx = [k_ for k_ in range(21, 25)]
+        q_color_idx = [k_ for k_ in range(25, 27)]
+        q_category_idx = [k_ for k_ in range(27, 29)]
+        q_brightness_idx = [k_ for k_ in range(29, 33)]
+        q_spatial_rel_idx = [k_ for k_ in range(33, 37)]
+        return q_size_idx, q_color_idx, q_category_idx, q_brightness_idx, q_spatial_rel_idx
+
+
+def map_question_idx_to_group_all(idx, single_image=True):
     """ Return the module id - where attributes,
     comparisons and relational questions are collected
     in subgroups.
     :param idx: identifier for the question
     """
-    if idx in category_idx:
-        return 0
-    elif idx in color_idx:
-        return 1
-    elif idx in brightness_idx:
-        return 2
-    elif idx in size_idx:
-        return 3
-    elif idx in q_size_idx:
+    if single_image:
+        q_size_idx, q_color_idx, q_category_idx, q_brightness_idx, q_spatial_rel_idx = generate_list(single_image=True,
+                                                                                                     spatial_only=False)
+        if idx in category_idx:
+            return 0
+        elif idx in color_idx:
+            return 1
+        elif idx in brightness_idx:
+            return 2
+        elif idx in size_idx:
+            return 3
+    else:
+        q_size_idx, q_color_idx, q_category_idx, q_brightness_idx = generate_list(single_image=False,
+                                                                                  spatial_only=False)
+        if idx < 4:
+            return idx
+        q_spatial_rel_idx = []
+
+    if idx in q_size_idx:
         return 4
     elif idx in q_color_idx:
         return 5
@@ -81,6 +140,30 @@ def map_question_idx_to_group(idx):
         return 8
     else:
         raise ValueError("The inserted index is wrong")
+
+
+def map_question_idx_to_group_spatial_only(idx):
+    q_spatial_rel_idx = generate_list(single_image=True,
+                                      spatial_only=True)
+    if idx in category_idx:
+        return 0
+    elif idx in color_idx:
+        return 1
+    elif idx in brightness_idx:
+        return 2
+    elif idx in size_idx:
+        return 3
+    elif idx in q_spatial_rel_idx:
+        return 4
+
+
+def map_question_idx_to_group(idx, single_image, spatial_only):
+    if (not single_image) and spatial_only:
+        raise ValueError('Impossible spatial relation between separated objects.')
+    if spatial_only:
+        return map_question_idx_to_group_spatial_only(idx)
+    else:
+        return map_question_idx_to_group_all(idx, single_image)
 
 
 def invert_dict(d):
@@ -133,7 +216,8 @@ def transform(img, reshape, color, bright='light'):
 
 
 def generate_combinations(n_combinations_train=1,
-                          n_combinations_test=5):
+                          n_combinations_test=5,
+                          vocab=None):
     """ Here, we generate the combinations of training and test point.
     We base this on vocab.
     We care of keeping some combinations at test across all the experiments.
@@ -143,9 +227,12 @@ def generate_combinations(n_combinations_train=1,
     All the attributes must appear at least once.
     :param n_combinations_train: how many repetitions for all the attributes we have at train
     :param  n_combinations_test: how many repetitions for all the attributes we have at test
+    :param vocab: dictionary containing all possible questions
     :return combinations_train: list of lists with all tuples at training
     :return combinations_test: list of lists with all tuples at test
     """
+    if vocab is None:
+        raise ValueError('You need to provide a vocabulary')
     combinations_train = []  # combinations for training
     combinations_test = []   # combinations for validation and test
     from_id_to_token = invert_dict(vocab["all_questions_token_to_idx"])
@@ -185,9 +272,9 @@ def generate_combinations(n_combinations_train=1,
     # we force the dataset to be red
 
     # dataset 15-19 random seed 123
-    # np.random.seed(123)  # in this way the tuples are always the same datasets 0-5
+    np.random.seed(123)  # in this way the tuples are always the same datasets 0-5
     # np.random.seed(456)  # for datasets 6-11
-    np.random.seed(789)  # for datasets 12-17
+    # np.random.seed(789)  # for datasets 12-17
     # especially at test
 
     for k_ in range(n_combinations_test):
@@ -249,19 +336,22 @@ def generate_combinations(n_combinations_train=1,
     return combinations_train, combinations_test
 
 
-def map_relation_to_attribute(id_rel):
-    if id_rel in range(21, 25):
-        return 3
-    if id_rel in range(25, 27):
-        return 1
-    if id_rel in range(29, 33):
-        return 2
-    if id_rel in range(27, 29):
-        return 0
-    if id_rel in range(33, 37):
+def map_relation_to_attribute(id_rel, spatial_only):
+    if spatial_only:
         return -1
     else:
-        raise ValueError("No match")
+        if id_rel in range(21, 25):
+            return 3
+        if id_rel in range(25, 27):
+            return 1
+        if id_rel in range(29, 33):
+            return 2
+        if id_rel in range(27, 29):
+            return 0
+        if id_rel in range(33, 37):
+            return -1
+        else:
+            raise ValueError("No match")
 
 
 def map_attribute_id_to_attribute(idx):
@@ -278,14 +368,24 @@ def map_attribute_id_to_attribute(idx):
         raise ValueError("The inserted index is wrong")
 
 
-def generate_templates(combinations, relations=RELATIONS_DICT):
+def generate_templates(combinations,
+                       single_image,
+                       spatial_only,
+                       ):
     """ Given the relations, we extract combinations and generate the dataset."""
     pos_answ = {}
     neg_answ = {}
 
+    if not single_image:
+        relations = RELATIONS_DICT_EXP2
+    elif spatial_only:
+        relations = RELATIONS_SPATIAL_ONLY
+    else:
+        relations = RELATIONS
+
     for rkey, rval in relations.items():
         # print(rkey, rval)
-        attribute_type = map_relation_to_attribute(rval)
+        attribute_type = map_relation_to_attribute(rval, spatial_only)
         pos_answ_for_r = []
         neg_answ_for_r = []
 
@@ -401,8 +501,8 @@ class DataGenerator(object):
                  variety,
                  ch=3,
                  image_size=64,
-                 relations=RELATIONS_DICT,
                  single_image=True,
+                 spatial_only=False,
                  gen_in_distr_test=False):
         """
         Dataset generation:
@@ -410,33 +510,43 @@ class DataGenerator(object):
         :param variety: min amount of time for which we see an attribute
         :param ch: number of channels
         :param image_size: size of the image (we assume it is square)
-        :param relations: dictionary of relations
         :param single_image: experiment_4 or 2
         :param gen_in_distr_test: if True, we do not generate tuples, but we assign old from training
         """
+
+        if (not single_image) and spatial_only:
+            raise ValueError('Contradictory instruction')
+
         self.variety = variety
         self.ch = ch
         self.image_size = image_size
         self.single_image = single_image
+        self.spatial_only = spatial_only
         self.gen_in_distr_test = gen_in_distr_test
         self.data_path = data_path
         self.loaded_mnist = False
         self.indices_per_category = None
 
+        print(single_image)
+        print(spatial_only)
+
+        self.vocab = generate_vocab(single_image, spatial_only)
+
         if not gen_in_distr_test:
             self.train_combinations = None
             self.test_combinations = None
 
-            comb_tr, comb_ts = generate_combinations(n_combinations_train=self.variety)
-            pos_comb_tr, neg_comb_tr = generate_templates(comb_tr, relations)
-            pos_comb_ts, neg_comb_ts = generate_templates(comb_ts, relations)
+            comb_tr, comb_ts = generate_combinations(n_combinations_train=self.variety, vocab=self.vocab)
+            pos_comb_tr, neg_comb_tr = generate_templates(comb_tr, single_image, spatial_only)
+            pos_comb_ts, neg_comb_ts = generate_templates(comb_ts, single_image, spatial_only)
 
             self.pos_comb_tr = pos_comb_tr
             self.neg_comb_tr = neg_comb_tr
             self.pos_comb_ts = pos_comb_ts
             self.neg_comb_ts = neg_comb_ts
 
-        self.vocab_q = vocab["question_token_to_idx"]
+        print(self.vocab)
+        self.vocab_q = self.vocab["question_token_to_idx"]
 
         # we need those combinations to be passed though
 
@@ -538,7 +648,7 @@ class DataGenerator(object):
         return lhs__, rhs__, spatial, question, label
 
     def generate_data_matrix(self,
-                             n=[2100000, 42000, 42000],
+                             n=[210000, 42000, 42000],
                              savepath=None,
                              h5_file=False):
         split_list = ["train", "valid", "test"]
@@ -770,9 +880,8 @@ class DataGenerator(object):
                 if not h5_file:
                     np.save(join(savepath, "feats_%s.npy" % split_), x_out[rnd_idx].transpose(0, 4, 1, 2, 3))
 
-                # FIXME: random shuffle of the data in data_loader functions
-                np.save(join(savepath, "answers_%s.npy" % split_), y_out[rnd_idx])
-                np.save(join(savepath, "questions_%s.npy" % split_), q_out[rnd_idx])
+            np.save(join(savepath, "answers_%s.npy" % split_), y_out[rnd_idx])
+            np.save(join(savepath, "questions_%s.npy" % split_), q_out[rnd_idx])
 
             with open(join(savepath, 'attributes_%s.pkl' % split_), 'wb') as f:
                 pickle.dump(a_out, f)
@@ -781,6 +890,6 @@ class DataGenerator(object):
 
         if not self.gen_in_distr_test:
             with open(join(savepath, 'vocab.json'), 'w') as outfile:
-                json.dump(vocab, outfile)
+                json.dump(self.vocab, outfile)
 
         return

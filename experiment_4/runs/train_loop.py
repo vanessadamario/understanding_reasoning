@@ -48,6 +48,14 @@ def get_execution_engine(**kwargs):
         ee = SHNMN(**kwargs)
     ee.to(device)
     ee.train()
+
+    if kwargs['shaping']:
+        # TODO: evaluation mode after check_accuracy
+        for id_st_, st_ in enumerate(ee.stem):
+            if isinstance(st_, torch.nn.BatchNorm2d):
+                print('evaluation mode for', id_st_)
+                ee.stem[id_st_].eval()
+
     return ee, load_last
 
 
@@ -58,6 +66,11 @@ def set_mode(mode, models):
             continue
         if mode == 'train':
             m.train()
+            if m.__dict__['shaping']:
+                for id_st_, st_ in enumerate(m.stem):
+                    if isinstance(st_, torch.nn.BatchNorm2d):
+                        print('evaluation mode for', id_st_)
+                        m.stem[id_st_].eval()
         if mode == 'eval':
             m.eval()
 
@@ -134,6 +147,10 @@ def train_loop(opt, train_loader, val_loader, load=False, shaping=False, path_sh
         execution_engine, load_last = get_execution_engine(**kkwargs_exec_engine_)  # TODO: new
     logger.info('Here is the conditioned network:')
     logger.info(execution_engine)
+
+    # print(execution_engine)
+    # print(execution_engine.__dict__.keys())
+    # return
 
     optim_method = getattr(torch.optim, opt.hyper_opt.optimizer)
 
@@ -306,13 +323,20 @@ def train_loop(opt, train_loader, val_loader, load=False, shaping=False, path_sh
                 running_loss += loss.item()
                 num_recordloss += 1
                 print(t)
+                print('Time for 10 iterations')
+                print(time.time() - batch_start_time)
+                batch_start_time = time.time()
                 print("\n\nNth CHECKPOINT LOSS: %i" % num_recordloss)
                 avg_loss = running_loss / opt.hyper_opt.record_loss_every
                 logger.info("{} {:.5f} {:.5f} {:.5f}".format(t,
                                                              time.time() - batch_start_time, time.time() - compute_start_time,
                                                              loss.item()))
-                print(execution_engine.__dict__.keys())
-                print(execution_engine._modules['question_embeddings'].weight)
+
+                # for id_st_, st_ in enumerate(execution_engine._modules['stem']):
+                #     print(st_)
+                #     if isinstance(st_, torch.nn.BatchNorm2d):
+                #         torch.save(st_, join(opt.output_path, 'BN_iter_%i_%i' % (t, id_st_)))
+
                 stats['train_losses'].append(avg_loss)
                 stats['train_losses_ts'].append(t)
                 if reward is not None:

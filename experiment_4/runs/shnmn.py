@@ -353,20 +353,35 @@ class SHNMN(nn.Module):
         #     self.separated_module = True
         #     self.separated_classifier = True
 
+        sqoop=False
         from runs.data_attribute_random import vocab as vocab_sqoop
-        from runs.data_comparison_relations import vocab as vocab_attribute_sqoop
         if self.vocab['question_token_to_idx'] == vocab_sqoop:
             from runs.data_attribute_random import map_question_idx_to_attribute_category as map_
-        elif self.vocab['question_token_to_idx'] == vocab_attribute_sqoop['question_token_to_idx']:
-            from runs.data_comparison_relations import map_question_idx_to_group as map_
+            sqoop = True
+        # elif self.vocab['question_token_to_idx'] == vocab_attribute_sqoop['question_token_to_idx']:
         else:
-            raise ValueError('vocab variable does not match')
-
+            from runs.data_comparison_relations import map_question_idx_to_group as map_
+        # else:
+        #     raise ValueError('vocab variable does not match')
         # TODO: old version for the shnmn with multiple attributes
         if self.use_module == "find":
-            self.func_ = map_
+            if sqoop:
+                self.func_ = map_()
+            else:
+                vals = vocab['question_token_to_idx'].values()
+                if len(vals) == 25:  # spatial relations only
+                    self.func_ = lambda idx: map_(idx, single_image=True, spatial_only=True)
+                elif len(vals) == 16:
+                    self.func_ = lambda idx: map_(idx, single_image=False, spatial_only=False)
+                    # for k_, v_ in vocab['question_token_to_idx'].items():
+                    #     print(k_, v_)
+                    #     print(self.func_(v_))
+                    #     # FIXME see if it works
+                    # return
+                else:
+                    self.func_ = lambda idx: map_(idx, single_image=True, spatial_only=False)
             tmp = np.array([self.func_(k_) for k_ in self.vocab['question_token_to_idx'].values()])
-            self.subgroups = np.unique(tmp).size
+            self.subgroups = np.unique(tmp).size # this number if 8 for experiment 2
         else:
             self.func_ = lambda x: x
             self.subgroups = None
@@ -666,6 +681,8 @@ class SHNMN(nn.Module):
                         if isinstance(new_params, torch.nn.BatchNorm2d):
                             self.stem[k_][i].running_mean = params[0]
                             self.stem[k_][i].running_var = params[1]
+                            self.stem[k_][i].weight = params[2]
+                            self.stem[k_][i].bias = params[3]
                             self.stem[k_][i].running_mean.requires_grad = False
                             self.stem[k_][i].running_var.requires_grad = False
                             self.stem[k_][i].weight.requires_grad = False
@@ -689,14 +706,23 @@ class SHNMN(nn.Module):
             else:
                 for i, (params, new_params), in enumerate(zip(stem_, self.stem)):
                     # print(new_params)
+                    print('transf: ', i)
                     if isinstance(new_params, torch.nn.BatchNorm2d):
                         self.stem[i].running_mean = params[0]
                         self.stem[i].running_var = params[1]
+                        self.stem[i].weight = params[2]
+                        self.stem[i].bias = params[3]
                         self.stem[i].running_mean.requires_grad = False
                         self.stem[i].running_var.requires_grad = False
                         self.stem[i].weight.requires_grad = False
                         self.stem[i].bias.requires_grad = False
                         self.stem[i].eval()
+
+                        print('equivalence')
+                        print(torch.equal(self.stem[i].running_mean, params[0]))
+                        print(torch.equal(self.stem[i].running_var, params[1]))
+                        print(torch.equal(self.stem[i].weight, params[2]))
+                        print(torch.equal(self.stem[i].bias, params[3]))
 
                     elif isinstance(new_params, torch.nn.Conv2d):
                         self.stem[i].weight = params[0]
