@@ -41,7 +41,7 @@ def check_and_train(opt, output_path, load):
     valid_loader = DataTorchLoader(opt, split="valid")
     # TODO 2: we need to call the train_loop function
     if opt.dataset.experiment_case == 0:
-        train_query_loop(opt, train_loader, valid_loader)
+        train_query_loop(opt, train_loader, valid_loader, load)
     # elif opt.dataset.experiment_case == 1:
     else:
         train_loop(opt, train_loader, valid_loader, load)
