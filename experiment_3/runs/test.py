@@ -233,6 +233,20 @@ def check_accuracy_test(opt, filename, test_loader, dtype, ee, pg=None):
 
     # if args.debug_every <= 1:
     #     pdb.set_trace()
+
+    file = h5py.File(output_path, "r")
+    correct = np.array([k_ for k_ in file["correct"]])
+
+    if opt.dataset.experiment_case == 0:  # query
+        accuracy = np.sum(correct, axis=0) / correct.shape[0]
+    else:  # vqa
+        accuracy = np.sum(correct) / correct.size
+    tmp_name = filename.split('output.h5')[0]
+    if len(tmp_name) == 0:
+        tmp_name = 'test_'
+    accuracy_filename = '%saccuracy.npy' % tmp_name
+    np.save(join(opt.output_path, accuracy_filename), accuracy)
+
     return acc
 
 
@@ -253,19 +267,31 @@ def extract_accuracy_val(opt, oos_distribution=False, validation=False):
     np.save(join(opt.output_path, output_file), np.sum(correct) / correct.size)
 
 
-def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False):
+def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False, test_seen=False):
     # this must happen in the main.py
 
     # TODO remove comment, this is for testing the load function
-    # if not opt.train_completed:
-    #     raise ValueError("Experiment %i did not train." % opt.id)
+    if not opt.train_completed:
+        raise ValueError("Experiment %i did not train." % opt.id)
 
-    if flag_validation:
-        split_name = "valid"
-        filename = 'valid_output.h5'
+    if test_seen:
+        if flag_validation:
+            split_name = 'in_distr_valid'
+            filename = 'seen_valid_output.h5'
+        else:
+            split_name = 'in_distr_test'
+            filename = 'seen_output.h5'
     else:
-        split_name = "oos_test" if flag_out_of_sample else "test"
-        filename = "oos_output.h5" if flag_out_of_sample else "output.h5"
+        if flag_validation:
+            split_name = 'valid'
+            filename = 'valid_output.h5'
+        else:
+            split_name = 'test'
+            filename = 'output.h5'
+
+    if flag_out_of_sample:
+        split_name = 'oos_test'
+        filename = 'oos_output.h5'
 
     print("Split name: ", split_name)
     test_loader = DataTorchLoader(opt, split=split_name)
@@ -273,7 +299,7 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False)
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
     kkwargs_exec_engine_ = opt.hyper_method.__dict__.copy()
     kkwargs_exec_engine_["execution_engine_start_from"] = join(opt.output_path,
-                                                               "model.best")
+                                                               "model")
     kkwargs_exec_engine_["vocab"] = vocab
     kkwargs_exec_engine_["method_type"] = opt.method_type
     sys.stdout.flush()
@@ -290,6 +316,5 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False)
 
     test_acc = check_accuracy_test(opt, filename, test_loader, dtype, ee)
     print("\nTest accuracy: ",  test_acc)
-    extract_accuracy_val(opt, oos_distribution=flag_out_of_sample, validation=flag_validation)
 
     return test_acc

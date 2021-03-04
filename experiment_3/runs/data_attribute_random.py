@@ -158,7 +158,8 @@ def generate_combinations(n_combinations_train=1,
 
     # dataset 15-19 random seed 123
     # np.random.seed(123)  # in this way the tuples are always the same dataset_0 - dataset_5
-    np.random.seed(456)  # dataset
+    # np.random.seed(456)  # dataset
+    np.random.seed(789)
     # especially at test
 
     for k_ in range(n_combinations_test):
@@ -297,6 +298,12 @@ class ImageGenerator(object):
         n_ch = 3
         img = np.zeros((n_ch, self.image_size, self.image_size))
         pos1, pos2 = self._set_positions()
+        for tup_ in [tuple1, tuple2]:
+            if isinstance(tup_[-1], str):
+                if tup_[-1] == 'False':
+                    tup_[-1] = False
+                else:
+                    tup_[-1] = True
         x_new1 = transform(self.all_images[id1] / 255,
                            reshape=tuple1[3],
                            color=tuple1[1],
@@ -325,7 +332,8 @@ def generate_data_matrix(n_train,
                          tuples_test,
                          path_output_folder,
                          path_original_file,
-                         flag_program=False):
+                         flag_program=False,
+                         test_seen=False):
     """
     This function saves a tuple of the input we need to train and test the
     networks.
@@ -336,6 +344,7 @@ def generate_data_matrix(n_train,
     :param path_output_folder: str, where to save the files
     :param path_original_file: str, where the original mnist files are
     :param flag_program: if we want to save the programs or not
+    :param test_seen: bool flag, if True we generate valid and test only
     :returns: None
     Format of the output file
         (questions, feats, answers)
@@ -344,7 +353,13 @@ def generate_data_matrix(n_train,
     """
     split_name = ["train", "valid", "test"]
     n_questions = len(vocab["question_token_to_idx"].keys())  # number of questions
+
     n_list = [n_train, 2000, 2000]
+
+    if test_seen:
+        split_name = split_name[1:]
+        n_list = n_list[1:]
+
     ch_ = 3  # color channel
     img_size = 64
 
@@ -353,9 +368,10 @@ def generate_data_matrix(n_train,
         y_ = np.load(join(path_original_file, "y_%s.npy" % split_))
         IG = ImageGenerator(all_images=x_)
         dim_x, dim_y = x_[0].shape  # image dimensions (equivalent across splits)
+
         if split_ == "train":
             tuples_ = tuples_train
-        else:
+        else:  # when test_seen, this is tuples_train
             tuples_ = tuples_test
 
         x_new = np.zeros((n_ * n_questions, ch_, img_size, img_size))
@@ -467,72 +483,79 @@ def generate_data_matrix(n_train,
         np.random.seed(123)
         np.random.shuffle(rnd_indexes)
 
+        if test_seen:
+            split_ = 'in_distr_%s' % split_
         np.save(join(path_output_folder, "feats_%s" % split_), x_new[rnd_indexes])
         np.save(join(path_output_folder, "questions_%s" % split_), q_new[rnd_indexes])
         np.save(join(path_output_folder, "answers_%s" % split_), a_new[rnd_indexes])
         np.save(join(path_output_folder, 'attributes_%s' % split_), np.array(list_attributes_examples)[rnd_indexes])
 
-    # save vocab
-    with open(join(path_output_folder, 'vocab.json'), 'w') as outfile:
-        json.dump(vocab, outfile)
+    if not test_seen:
+        # save vocab
+        with open(join(path_output_folder, 'vocab.json'), 'w') as outfile:
+            json.dump(vocab, outfile)
 
 
 def generate_data_file(output_data_folder,
                        n_train,
                        n_tuples_train,
                        n_tuples_test,
-                       splits_folder):
-    info = {}
-    info_path = output_data_folder + 'data_list.json'
-    print(info_path)
-    dirname = os.path.dirname(info_path)
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
-        idx_base = 0
-    elif os.path.isfile(info_path):
-        with open(info_path) as infile:
-            info = json.load(infile)
-            if info:  # it is not empty
-                idx_base = int(list(info.keys())[-1]) + 1  # concatenate
-            else:
-                idx_base = 0
-    else:  # we have the folder but the file is empty
-        info = dict()
-        idx_base = 0
+                       splits_folder,
+                       test_seen=False,
+                       dataset_name=None):
 
-    os.makedirs(output_data_folder + "dataset_%i" % idx_base,
-                exist_ok=False)
+    if test_seen:
+        dataset_path_ = join(output_data_folder, dataset_name)
+        attr_tr = np.load(join(dataset_path_, 'attributes_train.npy'))
+        tmp_comb = np.unique(np.vstack((attr_tr[:, 0], attr_tr[:, 1])), axis=0)
+        comb_train = [[j__ for j__ in j_] for j_ in tmp_comb]
+        comb_test = comb_train
+        print(comb_train)
+        print("\n\n")
+        print(comb_test)
 
-    comb_train, comb_test = generate_combinations(n_combinations_train=n_tuples_train,
-                                                  n_combinations_test=n_tuples_test,
-                                                  vocab_=vocab)
-    print("\nTrain combinations")
-    print(comb_train)
-    print("\nTest combinations")
-    print(comb_test)
+    else:
+        info = {}
+        info_path = output_data_folder + 'data_list.json'
+        print(info_path)
+        dirname = os.path.dirname(info_path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+            idx_base = 0
+        elif os.path.isfile(info_path):
+            with open(info_path) as infile:
+                info = json.load(infile)
+                if info:  # it is not empty
+                    idx_base = int(list(info.keys())[-1]) + 1  # concatenate
+                else:
+                    idx_base = 0
+        else:  # we have the folder but the file is empty
+            info = dict()
+            idx_base = 0
 
-    # this is based on question -- we want to sample uniformly
-    # from the square of possible combinations
+        os.makedirs(output_data_folder + "dataset_%i" % idx_base,
+                    exist_ok=False)
+
+        comb_train, comb_test = generate_combinations(n_combinations_train=n_tuples_train,
+                                                      n_combinations_test=n_tuples_test,
+                                                      vocab_=vocab)
+
     tuples_train, tuples_test = split_combinations(comb_train,
                                                    comb_test,
                                                    force_balance=False)
-    print("\nTuples train")
-    for q_, t_ in zip(vocab["question_token_to_idx"].keys(), tuples_train[1]):
-        print("\n" + q_)
-        print(t_)
-    # return
-    dataset_path_ = output_data_folder + "dataset_%i" % idx_base
+    if not test_seen:
+        dataset_path_ = output_data_folder + "dataset_%i" % idx_base
 
-    info[idx_base] = {"dataset_name": "dataset_%i" % idx_base,
-                      "dataset_path": output_data_folder + "dataset_%i" % idx_base,
-                      "dataset_train": tuples_train,
-                      "dataset_test": tuples_test,
-                      "question_token": vocab["question_token_to_idx"],
-                      "combinations_train": n_tuples_train,
-                      "combinations_test": n_tuples_test}
+        info[idx_base] = {"dataset_name": "dataset_%i" % idx_base,
+                          "dataset_path": output_data_folder + "dataset_%i" % idx_base,
+                          "dataset_train": tuples_train,
+                          "dataset_test": tuples_test,
+                          "question_token": vocab["question_token_to_idx"],
+                          "combinations_train": n_tuples_train,
+                          "combinations_test": n_tuples_test}
 
-    with open(info_path, 'w') as f:
-        json.dump(info, f)
+        with open(info_path, 'w') as f:
+            json.dump(info, f)
 
     generate_data_matrix(n_train,
                          vocab["question_token_to_idx"],
@@ -540,4 +563,5 @@ def generate_data_file(output_data_folder,
                          tuples_test,
                          path_output_folder=dataset_path_,
                          path_original_file=splits_folder,
-                         flag_program=False)
+                         flag_program=False,
+                         test_seen=test_seen)
