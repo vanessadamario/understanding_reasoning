@@ -5,7 +5,7 @@ from os.path import join
 
 # TODO: remember to change the parameters for the dataset : n_training
 experiment_case_list = [1]  # [1] for VQA and binary answers
-lr_array = [1e-1, 1e-2, 5e-3, 1e-3, 1e-5]  # [1e-4]  #
+lr_array = [1e-2, 5e-3, 1e-3, 1e-5, 1e-4]  # [1e-4, 1e-5]  #
 method_type_list = ["SHNMN"]
 batch_list = [64]
 dataset_dict = {"dataset_name": ["dataset_0",
@@ -13,18 +13,19 @@ dataset_dict = {"dataset_name": ["dataset_0",
                                  "dataset_2",
                                  "dataset_3",
                                  "dataset_4",
-                                 "dataset_5"
+                                 "dataset_5",
                                  ]
                 }
 
-dict_method_type = {"use_module": "residual",
+dict_method_type = {"use_module": "residual"
+                                  "",
                     "model_type": 'soft',
                     "tau_init": "tree",
                     "alpha_init": "correct",
                     "model_bernoulli": 0.5,
                     "hard_code_alpha": True,
                     "hard_code_tau": True,
-                    "feature_dim": [3, 64, 64],  # TODO: input dimensions
+                    "feature_dim": [3, 28, 28],  # TODO: input dimensions
                     "module_dim": 64,
                     "module_kernel_size": 3,
                     "stem_dim": 64,
@@ -38,10 +39,11 @@ dict_method_type = {"use_module": "residual",
                     "classifier_batchnorm": 0,  # TODO: classifier_batchnorm changed 0
                     "classifier_downsample": "maxpoolfull",
                     "num_modules": 3,
-                    "separated_stem": True,
-                    "separated_module": True,
-                    "separated_classifier": True
+                    "separated_stem": 1,
+                    "separated_module": 1,
+                    "separated_classifier": 1
                     }
+
 
 class OptimizationHyperParameters(object):
     """ Add hyper-parameters in init so when you read a json,
@@ -66,12 +68,12 @@ class OptimizationHyperParameters(object):
                  checkpoint_every=1000,
                  time=0,
                  num_val_samples=1000,
-                 early_stopping=True,
+                 early_stopping=False,
                  previous_epochs=2,
                  min_epochs=3,
                  max_epochs=500,
-                 n_checkpoint_every_epoch=5,
-                 n_record_loss_every_epoch=50):
+                 n_checkpoint_every_epoch=1000,
+                 n_record_loss_every_epoch=1000):
         """
         :param learning_rate: float, the initial value for the learning rate.
         :param architecture: str, the architecture types.
@@ -477,7 +479,7 @@ class Dataset(object):
                  dataset_split="train",
                  dataset_id_path="",
                  experiment_case=1,
-                 image_size=64,
+                 image_size=28,
                  n_training=210000,
                  policy=None):
         """

@@ -1,0 +1,29 @@
+Minutes of Meeting (Mar 03, 2021):
+
+Agenda: 
+Discuss on experiments and hardware resource availability.
+
+Resource Update:
+1. Fixstars confirmed that PO and cheque destination should be to the same entity. Xavier confirmed that the Poggio Lab cannot provide a quote as it does not handle the accounts.
+2. Xavier mentioned that in future Satori is an option if the contract is made appropriately to include it's resources. Satori's resources are less constrained compared to OpenMind. In OpenMind there are no further expansions possible.
+3. Plan to move ahead with AWS and the resource should be used by Mar 26. This will result in using more AWS servers in less time.
+4. Sasaki San mentioned that it might be possible to use Fujitsu's AWS account for experiments after Mar 26.
+
+Billing:
+1. Fixstars will send a quotation of total costs until March 19 to Fujitsu.
+2. Sasaki San mentioned that Fixstars should double check with KAGA-FEI if quotation is sufficient for the project. 
+3. Sasaki San will be checking the progress of the project and tell purchase department of Fujitsu whether the cost is appropriate or not.
+
+Status Update:
+1. For case_1, vqa experiments in trial 1 are almost finished. 
+2. Fixstars noted that normal partition is faster to execute the experiments compared to availability problems in cbmm partition.
+3. Xavier suggested to also check "use everything" partition is we can get many GPUs easily. However, it is the lowest priority.
+4. Fixstars presented the DASH GUI to visualize the progress of experiments. 
+5. Xavier asked if there is a way to get preemption information for OpenMind nodes. Fixstars confirmed that we can use Ray Dashboard to get active node information.
+6. Fixstars confirmed that we request each OpenMind node for 90 hours.
+7. Fixstars pointed out that batch size of 256 takes 2x the training time than batch size of 128. This is unexpected. This is observable across all architectures and hardwares.
+8. Vanessa confirmed that in next experiments, a fixed batch size will be used. Finding an optimal batch size for training is a concern.
+9. Vanessa confirms that experiment_2 is higher priority. Fixstars will check the resource requirement for the experiments in this case.
+10. Vanessa confirmed that the shaping time delay was due to OpenMind node CPU load and not due to the code.
+11. Xavier and Sasaki San suggest to present on Ray, comparing it with other packages and how to use it.
+12. Vanessa has shared the code and datasets to Fixstars for experiment 2.

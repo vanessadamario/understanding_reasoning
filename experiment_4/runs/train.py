@@ -2,10 +2,9 @@ import os
 from os.path import join
 import sys
 from runs.data_loader import DataTorchLoader
-from runs.train_loop import train_loop
 
 
-def check_and_train(opt, output_path, load=False):
+def check_and_train(opt, output_path, load=False, shaping=False, path_shaping=None):
     """ Check if the experiments has already been performed.
     If it is not, train otherwise retrieve the path relative to the experiment.
     :param opt: Experiment instance. It contains the output path for the experiment
@@ -36,13 +35,15 @@ def check_and_train(opt, output_path, load=False):
     # and pass them similarly to what ClevrDataset does
     # worst case to pass those to train_loop as in the original implementation
     train_loader = DataTorchLoader(opt)  # at training
-    # for tr_ in train_loader: # TODO check here
-    #     print(tr_[0].shape, tr_[1], tr_[2])
-    #     break
+    for tr_ in train_loader:  # TODO check here
+        print(tr_[0].shape, tr_[1], tr_[2])
+        print(tr_[0].ndimension())
+        break
     valid_loader = DataTorchLoader(opt, split="valid")
     # TODO 2: we need to call the train_loop function
 
-    train_loop(opt, train_loader, valid_loader, load)
+    from runs.train_loop import train_loop
+    train_loop(opt, train_loader, valid_loader, load, shaping, path_shaping)
     # here training must happen
 
     # we write an empty *.txt file with the completed experiment
