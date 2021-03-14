@@ -50,7 +50,7 @@ app.layout = html.Div(
 
         dash_table.DataTable(
             id='table',
-            columns=[{"name": i, "id": i} for i in ['Tag', 'Status', 'Progress', 'BestAccVal', 'Elapsed Time']],
+            columns=[{"name": i, "id": i} for i in ['Tag', 'Status', 'Progress', 'BestValAcc', 'Elapsed Time']],
             style_table={
                 'width': '25%',
                 # 'padding-left': '18%',
