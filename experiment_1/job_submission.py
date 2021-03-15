@@ -154,7 +154,7 @@ def get_progress(tag):
         except:
             return '0%', '0'
     else:
-        return '0%', '0'
+        return '-1', '0'
 
 def mainrun(argv):
 
@@ -174,10 +174,11 @@ def mainrun(argv):
 
 
     rets = submit_job(multi_cmds, exps, wrk_path)
-    starttime = datetime.now()
+    st = {}
     et = {}
     for ctr in range(len(rets)):
-        et[ctr] = datetime.now() - starttime
+        st[ctr] = datetime.now()
+        et[ctr] = None
     with output(initial_len=6 + len(rets), interval=0) as output_lines:
         while True:
             rd = []
@@ -189,7 +190,7 @@ def mainrun(argv):
                     rd.append(i)
                 for i in n:
                     nrd.append(i)
-                    et[ctr] = datetime.now() - starttime
+                    
             
             case_info = os.path.basename(os.getcwd())
             dash_data = {}
@@ -208,22 +209,41 @@ def mainrun(argv):
             for i in range(len(rets)):
                 obj = rets[i]
                 tagname = 'train' + '_' + str(exps[i])
-                if(obj in rd):
+                c, a = get_progress(tagname)
+                ct = datetime.now()
+                
+                if(c == '-1'):
+                    st[i] = ct
                     dash_data['info']['Tag'].append(tagname)
-                    dash_data['info']['Status'].append('Finished')
-                    c, a = get_progress(tagname)
-                    dash_data['info']['Progress'].append('100%')
-                    dash_data['info']['BestValAcc'].append(a)
-                    dash_data['info']['Elapsed Time'].append(str(et[i]))
-                    x.add_row([tagname, "Finished", '100%', a, str(et[i])])
-                if(obj in nrd):
-                    dash_data['info']['Tag'].append(tagname)
-                    dash_data['info']['Status'].append('In Progress...')
-                    c, a = get_progress(tagname)
-                    dash_data['info']['Progress'].append(c)
-                    dash_data['info']['BestValAcc'].append(a)
-                    dash_data['info']['Elapsed Time'].append(str(et[i]))
-                    x.add_row([tagname, "In Progress...", c, a, str(et[i])])
+                    dash_data['info']['Progress'].append('0%')
+                    dash_data['info']['BestValAcc'].append('0')
+                    dash_data['info']['Elapsed Time'].append('00:00:00.00')
+
+                    if(obj in rd):
+                        dash_data['info']['Status'].append('Possible Error!')
+                        x.add_row([tagname, "Waiting", '0%', '0', '00:00:00.00'])
+                    else:
+                        dash_data['info']['Status'].append('Waiting')
+                        x.add_row([tagname, "Waiting", '0%', '0', '00:00:00.00'])
+                else:
+                    
+                    if(obj in rd):
+                        if(et[i] is None):
+                            et[i] = ct - st[i]
+                        dash_data['info']['Tag'].append(tagname)
+                        dash_data['info']['Status'].append('Finished')
+                        dash_data['info']['Progress'].append('100%')
+                        dash_data['info']['BestValAcc'].append(a)
+                        dash_data['info']['Elapsed Time'].append(str(et[i]))
+                        x.add_row([tagname, "Finished", '100%', a, str(et[i])])
+                    if(obj in nrd):
+                        et[i] = ct - st[i]
+                        dash_data['info']['Tag'].append(tagname)
+                        dash_data['info']['Status'].append('In Progress...')
+                        dash_data['info']['Progress'].append(c)
+                        dash_data['info']['BestValAcc'].append(a)
+                        dash_data['info']['Elapsed Time'].append(str(et[i]))
+                        x.add_row([tagname, "In Progress...", c, a, str(et[i])])
 
             with open(wrk_path + '/progress.json', 'w') as f:
                 json.dump(dash_data, f, indent=4)

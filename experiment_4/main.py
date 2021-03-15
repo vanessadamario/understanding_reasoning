@@ -106,7 +106,14 @@ def run_train(id):
     :param id: id of the experiment
     """
     from runs.train import check_and_train
+    from pathlib import Path
     opt = experiments.get_experiment(output_path, id)  # Experiment instance
+    if(FLAGS.load_model == True):
+      fname = output_path +'/train_%d' %id + '/model.json'
+      fp = Path(fname)
+      if not fp.exists():
+        FLAGS.load_model = False
+    print("Load model at train: ", FLAGS.load_model)
     check_and_train(opt, output_path, FLAGS.load_model)
 
 
