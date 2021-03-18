@@ -275,7 +275,7 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False,
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
     kkwargs_exec_engine_ = opt.hyper_method.__dict__.copy()
     kkwargs_exec_engine_["execution_engine_start_from"] = join(opt.output_path,
-                                                               "model.best")
+                                                               "model")
     kkwargs_exec_engine_["vocab"] = vocab
     kkwargs_exec_engine_["method_type"] = opt.method_type
     if opt.dataset.experiment_case == 0:
