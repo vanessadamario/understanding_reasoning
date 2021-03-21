@@ -144,7 +144,7 @@ def run_train(id):
         fp = Path(fname)
         if fp.exists():
             print("Experiment has completed!")
-        return
+            return
     print("Load model at train: ", FLAGS.load_model)
     check_and_train(opt, output_path, FLAGS.load_model)
 
