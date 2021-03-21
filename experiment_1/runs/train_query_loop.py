@@ -223,7 +223,7 @@ def train_query_loop(opt, train_loader, val_loader, load=False):  # TODO: includ
         print("\nCheckpoint loss: ", record_loss)
 
     else:
-        max_iterations = opt.hyper.num_iterations
+        max_iterations = opt.hyper_opt.num_iterations
         checkpoint_every = opt.hyper_opt.checkpoint_every
         record_loss = opt.hyper_opt.record_loss_every
 
