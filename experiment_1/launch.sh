@@ -1,26 +1,27 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH -c 1
-#SBATCH --array=175
-#SBATCH --job-name=complete_
+#SBATCH --array=263
+#SBATCH --job-name=query
 #SBATCH --mem=8GB
-#SBATCH --gres=gpu:tesla-k80:1
-#SBATCH -t 10:00:00
+#SBATCH --gres=gpu:1
+#SBATCH --constraint=8GB
+#SBATCH -t 12:00:00
 #SBATCH --partition=cbmm
+#SBATCH -D /om2/user/vanessad/understanding_reasoning/experiment_1/output_slurm_query
 
 module add openmind/singularity/3.4.1
 hostname
+
+echo $CUDA_VISIBLE_DEVICES
+echo $CUDA_DEVICE_ORDER
+
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.simg python main.py \
 --host_filesystem om2 \
 --offset_index 0 \
 --experiment_index ${SLURM_ARRAY_TASK_ID} \
---load_model 1 \
+--load_model True \
+--output_path **** here is your path to results \
 --run train
 
-# final retrain
-# 21,121,123,125,137,139,141,143,147,149,151,153,155,157,159,161,167,169,171,175,177,179,183,203,209
-
-# --load_model 1 \
-#SBATCH --constraint=any-gpu
-
-#
+# 1,2,7,8,9,27,28,29,36,43  train from scratch

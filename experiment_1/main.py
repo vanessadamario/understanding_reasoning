@@ -4,7 +4,7 @@
 import os
 import sys
 import argparse
-from os.path import join
+from os.path import join, isfile, dirname
 from runs import experiments
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
@@ -29,6 +29,11 @@ parser.add_argument('--host_filesystem', type=str, required=True)
 parser.add_argument('--run', type=str, required=True)
 parser.add_argument('--on_validation', type=bool, required=False, default=False)
 parser.add_argument('--output_path', type=str, required=False)  # TODO: eliminate this
+parser.add_argument('--test_seen', type=bool, required=False, default=False)
+parser.add_argument('--new_data_path', type=bool, required=False, default=False)
+parser.add_argument('--new_output_path', type=bool, required=False, default=False)
+parser.add_argument('--data_path', type=str, required=False, default=None)
+parser.add_argument('--architecture_type', type=str, required=False, default=None)
 
 FLAGS = parser.parse_args()
 print("test oos", FLAGS.test_oos)
@@ -45,7 +50,7 @@ print("dense", FLAGS.dense)
 PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_1/data_generation/MNIST_splits"
 
 output_path = FLAGS.output_path
-# output_path = '/om2/user/vanessad/understanding_reasoning/experiment_1/test_early_stopping/'
+# output_path = '/om2/user/vanessad/understanding_reasoning/experiment_1/query_early_stopping/'
 print(output_path)
 os.makedirs(output_path, exist_ok=True)
 
@@ -57,6 +62,7 @@ def generate_data(id):
     """ Generation/update of the json file with data details """
     output_data_folder = join(os.path.dirname(os.path.dirname(output_path)),
                               'data_generation/datasets/')
+    print(output_data_folder)
     if FLAGS.dense:
         from runs import data_attribute_random
         data_attribute_random.gen_dense_questions(join(output_data_folder,
@@ -78,7 +84,10 @@ def generate_data(id):
                                                      FLAGS.negative_train_combinations,
                                                      FLAGS.positive_test_combinations,
                                                      FLAGS.negative_test_combinations,
-                                                     splits_folder=PATH_MNIST_SPLIT)
+                                                     splits_folder=PATH_MNIST_SPLIT,
+                                                     test_seen=FLAGS.test_seen,
+                                                     dataset_name=FLAGS.dataset_name
+                                                     )
     else:
         from runs import data_attribute
         data_attribute.generate_data_file(output_data_folder,
@@ -89,10 +98,10 @@ def generate_experiments(id):
     """ Generation of the experiments. """
     output_data_folder = join(os.path.dirname(os.path.dirname(output_path)),
                               'data_generation/datasets')
-    # output_data_folder = "/om/user/vanessad/understanding_reasoning/experiment_1/data_generation/datasets"
-    # output_path = "/om5/user/vanessad/understanding_reasoning/experiment_1/results"
     experiments.generate_experiments(output_path,
-                                     output_data_folder)
+                                     output_data_folder,
+                                     shift=0)
+    # change shift based on what you need
 
 
 def run_test(id):
@@ -100,19 +109,43 @@ def run_test(id):
     """
     # OOS:
     from runs.test import check_and_test, extract_accuracy_val
-    print(FLAGS.on_validation)
+    # print(FLAGS.on_validation)
     opt = experiments.get_experiment(output_path, id)
-    check_and_test(opt, FLAGS.test_oos, flag_validation=FLAGS.on_validation)
-    extract_accuracy_val(opt, oos_distribution=FLAGS.test_oos, validation=FLAGS.on_validation)
+    if FLAGS.new_output_path:
+        new_path = join(FLAGS.output_path, 'train_%i' % id)
+        opt.output_path = new_path
+        print(new_path)
+    if FLAGS.new_data_path:
+        opt.dataset.dataset_id_path = join(FLAGS.data_path, opt.dataset.dataset_id)
+    check_and_test(opt, FLAGS.test_oos, flag_validation=True, test_seen=True)
+    check_and_test(opt, FLAGS.test_oos, flag_validation=True, test_seen=False)
+    check_and_test(opt, FLAGS.test_oos, flag_validation=False, test_seen=True)
+    check_and_test(opt, FLAGS.test_oos, flag_validation=False, test_seen=False)
+    # extract_accuracy_val(opt, oos_distribution=FLAGS.test_oos,
+    # validation=FLAGS.on_validation, test_seen=FLAGS.test_seen)
 
 
 def run_train(id):
     """ Run the experiments.
     :param id: id of the experiment
     """
-    # TODO: use mostly the functions and models from systematic generalization
+    import json
     from runs.train import check_and_train
+    from pathlib import Path
+    with open(output_path + '/train.json', 'r') as f:
+        d = json.load(f)
     opt = experiments.get_experiment(output_path, id)  # Experiment instance
+    if(FLAGS.load_model == True):
+        fname = output_path +'/train_%d' %id + '/model.json'
+        fp = Path(fname)
+        if not fp.exists():
+            FLAGS.load_model = False
+        fname = output_path +'/flag_completed/complete_%d.txt' %id
+        fp = Path(fname)
+        if fp.exists():
+            print("Experiment has completed!")
+        return
+    print("Load model at train: ", FLAGS.load_model)
     check_and_train(opt, output_path, FLAGS.load_model)
 
 
@@ -120,6 +153,8 @@ def update_json(id):
     from runs.update import check_update
     """ Write on the json if the experiments are completed,
     by changing the flag. """
+    if FLAGS.new_output_path:
+        output_path = FLAGS.output_path
     print(output_path)
     check_update(output_path)
 
@@ -129,7 +164,28 @@ def generate_query(id):
     output_data_folder = join(os.path.dirname(os.path.dirname(output_path)),
                               'data_generation/datasets',
                               FLAGS.dataset_query)
-    build_mapping(output_data_folder)
+    build_mapping(output_data_folder, FLAGS.test_seen)
+
+
+def measure_activity(id):
+    path_data_activity = join(dirname(FLAGS.output_path),
+                              'data_generation/datasets',
+                              FLAGS.dataset_name)
+    # FIXME: query case only
+    # if isfile(join(path_data_activity, 'query_in_distr_indexes_activations.npy')):
+    if isfile(join(path_data_activity, 'feats_query_activation.npy')):
+        from runs.analysis_neural_activity import compute_activations
+        print(FLAGS.architecture_type, FLAGS.dataset_name, FLAGS.output_path)
+        compute_activations(FLAGS.architecture_type,
+                            FLAGS.dataset_name,
+                            FLAGS.output_path)
+    else:
+        # from runs.dataset_neural_activity import sample_selection
+        # sample_selection(join(dirname(FLAGS.output_path), 'data_generation/datasets', FLAGS.dataset_name),
+        #                  experiment_case=0)
+        from runs.dataset_neural_activity import generate_activation_dataset
+        generate_activation_dataset(join(dirname(FLAGS.output_path), 'data_generation/datasets', FLAGS.dataset_name),
+                                    experiment_case=0)
 
 
 switcher = {
@@ -138,7 +194,8 @@ switcher = {
     'gen_exp': generate_experiments,
     'update': update_json,
     'test': run_test,
-    'gen_query': generate_query
+    'gen_query': generate_query,
+    'activations': measure_activity
 }
 
 switcher[FLAGS.run](FLAGS.experiment_index + FLAGS.offset_index)
