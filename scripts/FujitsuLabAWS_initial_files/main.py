@@ -6,7 +6,8 @@ import sys
 import argparse
 from os.path import join
 from runs import experiments
-from pathlib import Path
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_index', type=int, required=True)
@@ -27,13 +28,19 @@ parser.add_argument('--data_folder', type=str, required=False, default=None)
 parser.add_argument('--host_filesystem', type=str, required=True)
 parser.add_argument('--run', type=str, required=True)
 parser.add_argument('--on_validation', type=bool, required=False, default=False)
+parser.add_argument('--output_path', type=str, required=False)  # TODO: eliminate this
 
 FLAGS = parser.parse_args()
 print("test oos", FLAGS.test_oos)
 print("dense", FLAGS.dense)
 
 # where to save and retrieve the experiments
-output_path = join(Path(__file__).parent.absolute(), 'results/')
+output_path = {
+    'om2': '/om2/user/vanessad/understanding_reasoning/experiment_1',
+    'om': '/om/user/vanessad/understanding_reasoning/experiment_1',
+    'vanessa': '/Users/vanessa/src/understanding_reasoning/experiment_1',
+    'aws':'/mnt/instance_store/work/understanding_reasoning/experiment_1'}[FLAGS.host_filesystem]
+output_path = join(output_path, 'results/')
 PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_1/data_generation/MNIST_splits"
 
 print(output_path)
@@ -102,27 +109,7 @@ def run_train(id):
     """
     # TODO: use mostly the functions and models from systematic generalization
     from runs.train import check_and_train
-    from pathlib import Path
-    import json
-    import os
     opt = experiments.get_experiment(output_path, id)  # Experiment instance
-    with open('results/train.json', 'r') as f:
-        d = json.load(f)
-
-    if not os.path.exists(d[str(id)]['dataset']['dataset_id_path']):
-        return
-
-    if(FLAGS.load_model == True):
-      fname = output_path +'/train_%d' %id + '/model.json'
-      fp = Path(fname)
-      if not fp.exists():
-        FLAGS.load_model = False
-      fname = output_path +'/flag_completed/complete_%d.txt' %id
-      fp = Path(fname)
-      if fp.exists():
-        print("Experiment has completed!")
-        return
-    print("Load model at train: ", FLAGS.load_model)
     check_and_train(opt, output_path, FLAGS.load_model)
 
 

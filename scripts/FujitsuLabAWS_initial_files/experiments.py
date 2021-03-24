@@ -3,47 +3,145 @@ import os
 from os.path import join
 
 
-# TODO: remember to change the parameters for the dataset : n_training
-experiment_case_list = [1]  # [1] for VQA and binary answers
-lr_array = [1e-2, 5e-3, 1e-3, 1e-5, 1e-4]  # [1e-4, 1e-5]  #
+experiment_case_list = [1]  # [1] for VQA and binary answers  # case 2, four VQAs per image
+lr_array = [1e-2, 1e-4]
 method_type_list = ["SHNMN"]
-batch_list = [64]
-dataset_dict = {"dataset_name": ["dataset_0",
-                                 "dataset_1",
-                                 "dataset_2",
-                                 "dataset_3",
-                                 "dataset_4",
-                                 "dataset_5",
-                                 ]
+batch_list = [128, 256]
+dataset_dict = {"dataset_name": [
+                                    "dataset_15",
+                                    "dataset_16",
+                                ]
                 }
+architectures = ['find', 'residual']
 
-dict_method_type = {"use_module": "residual"
-                                  "",
-                    "model_type": 'soft',
-                    "tau_init": "tree",
-                    "alpha_init": "correct",
-                    "model_bernoulli": 0.5,
-                    "hard_code_alpha": True,
-                    "hard_code_tau": True,
-                    "feature_dim": [3, 28, 28],  # TODO: input dimensions
-                    "module_dim": 64,
-                    "module_kernel_size": 3,
-                    "stem_dim": 64,
-                    "stem_num_layers": 6,  # TODO: stem_num_layer changed 2
-                    "stem_subsample_layers": [1, 3],  # TODO: changed from []
-                    "stem_kernel_size": [3],
-                    "stem_padding": None,
-                    "stem_batchnorm": 0,  # TODO: stem_batchnorm changed 0
-                    "classifier_fc_layers": [1024],
-                    "classifier_proj_dim": 512,
-                    "classifier_batchnorm": 0,  # TODO: classifier_batchnorm changed 0
-                    "classifier_downsample": "maxpoolfull",
-                    "num_modules": 3,
-                    "separated_stem": 1,
-                    "separated_module": 1,
-                    "separated_classifier": 1
-                    }
+dicts_arch = {}
 
+dicts_arch['find'] = {"use_module": "find",
+                        "stem_batchnorm": 1,
+                        "classifier_batchnorm": 1,
+                        "separated_stem": False,
+                        "separated_module": False,
+                        "separated_classifier": False,
+                        "model_type": 'soft',
+                        "tau_init": "single",
+                        "alpha_init": "single",
+                        "model_bernoulli": 0.5,
+                        "hard_code_alpha": True,
+                        "hard_code_tau": True,
+                        "feature_dim": [3, 28, 28],  # input dimensions
+                        "module_dim": 64,
+                        "module_kernel_size": 3,
+                        "stem_dim": 64,
+                        "stem_num_layers": 6,
+                        "stem_subsample_layers": [1, 3],
+                        "stem_kernel_size": [3],
+                        "stem_padding": None,
+                        "classifier_fc_layers": [1024],
+                        "classifier_proj_dim": 512,
+                        "classifier_downsample": "maxpoolfull",
+                        "num_modules": 1
+                        }
+dicts_arch['half_separated_find'] = {"use_module": "find",
+                        "stem_batchnorm": 0,
+                        "classifier_batchnorm": 0,
+                        "separated_stem": False,
+                        "separated_module": True,
+                        "separated_classifier": True,
+                        "model_type": 'soft',
+                        "tau_init": "single",
+                        "alpha_init": "single",
+                        "model_bernoulli": 0.5,
+                        "hard_code_alpha": True,
+                        "hard_code_tau": True,
+                        "feature_dim": [3, 28, 28],  # input dimensions
+                        "module_dim": 64,
+                        "module_kernel_size": 3,
+                        "stem_dim": 64,
+                        "stem_num_layers": 6,
+                        "stem_subsample_layers": [1, 3],
+                        "stem_kernel_size": [3],
+                        "stem_padding": None,
+                        "classifier_fc_layers": [1024],
+                        "classifier_proj_dim": 512,
+                        "classifier_downsample": "maxpoolfull",
+                        "num_modules": 1
+                        }
+dicts_arch['separated_find'] = {"use_module": "find",
+                        "stem_batchnorm": 0,
+                        "classifier_batchnorm": 0,
+                        "separated_stem": True,
+                        "separated_module": True,
+                        "separated_classifier": True,
+                        "model_type": 'soft',
+                        "tau_init": "single",
+                        "alpha_init": "single",
+                        "model_bernoulli": 0.5,
+                        "hard_code_alpha": True,
+                        "hard_code_tau": True,
+                        "feature_dim": [3, 28, 28],  # input dimensions
+                        "module_dim": 64,
+                        "module_kernel_size": 3,
+                        "stem_dim": 64,
+                        "stem_num_layers": 6,
+                        "stem_subsample_layers": [1, 3],
+                        "stem_kernel_size": [3],
+                        "stem_padding": None,
+                        "classifier_fc_layers": [1024],
+                        "classifier_proj_dim": 512,
+                        "classifier_downsample": "maxpoolfull",
+                        "num_modules": 1
+                        }
+dicts_arch['residual'] = {"use_module": "residual",
+                        "stem_batchnorm": 0,
+                        "classifier_batchnorm": 0,
+                        "separated_stem": False,
+                        "separated_module": False,
+                        "separated_classifier": False,
+                        "model_type": 'soft',
+                        "tau_init": "single",
+                        "alpha_init": "single",
+                        "model_bernoulli": 0.5,
+                        "hard_code_alpha": True,
+                        "hard_code_tau": True,
+                        "feature_dim": [3, 28, 28],  # input dimensions
+                        "module_dim": 64,
+                        "module_kernel_size": 3,
+                        "stem_dim": 64,
+                        "stem_num_layers": 6,
+                        "stem_subsample_layers": [1, 3],
+                        "stem_kernel_size": [3],
+                        "stem_padding": None,
+                        "classifier_fc_layers": [1024],
+                        "classifier_proj_dim": 512,
+                        "classifier_downsample": "maxpoolfull",
+                        "num_modules": 1
+                        }
+dicts_arch['separated_residual'] = {"use_module": "residual",
+                        "stem_batchnorm": 0,
+                        "classifier_batchnorm": 0,
+                        "separated_stem": True,
+                        "separated_module": True,
+                        "separated_classifier": True,
+                        "model_type": 'soft',
+                        "tau_init": "single",
+                        "alpha_init": "single",
+                        "model_bernoulli": 0.5,
+                        "hard_code_alpha": True,
+                        "hard_code_tau": True,
+                        "feature_dim": [3, 28, 28],  # input dimensions
+                        "module_dim": 64,
+                        "module_kernel_size": 3,
+                        "stem_dim": 64,
+                        "stem_num_layers": 6,
+                        "stem_subsample_layers": [1, 3],
+                        "stem_kernel_size": [3],
+                        "stem_padding": None,
+                        "classifier_fc_layers": [1024],
+                        "classifier_proj_dim": 512,
+                        "classifier_downsample": "maxpoolfull",
+                        "num_modules": 1
+                        }
+                
 
 class OptimizationHyperParameters(object):
     """ Add hyper-parameters in init so when you read a json,
@@ -56,7 +154,7 @@ class OptimizationHyperParameters(object):
                  optimizer='Adam',
                  lr_at_plateau=True,  # TODO: not implemented in sysgen
                  reduction_factor=None,  # TODO: not implemented in sysgen
-                 validation_check=True,  # TODO: not implemented in sysgen
+                 validation_check=True,
                  num_iterations=200000,
                  sensitive_learning_rate=1e-3,
                  reward_decay=0.9,
@@ -65,15 +163,15 @@ class OptimizationHyperParameters(object):
                  randomize_checkpoint_path=False,
                  avoid_checkpoint_override=False,
                  record_loss_every=10,
-                 checkpoint_every=1000,
+                 checkpoint_every=200,  # 1000, brute force (train until num_iterations)
                  time=0,
                  num_val_samples=1000,
-                 early_stopping=False,
+                 early_stopping=True,
                  previous_epochs=2,
                  min_epochs=3,
                  max_epochs=500,
-                 n_checkpoint_every_epoch=1000,
-                 n_record_loss_every_epoch=1000):
+                 n_checkpoint_every_epoch=5,
+                 n_record_loss_every_epoch=50):
         """
         :param learning_rate: float, the initial value for the learning rate.
         :param architecture: str, the architecture types.
@@ -82,7 +180,6 @@ class OptimizationHyperParameters(object):
             ['Adadelta', 'Adagrad', 'Adam', 'Adamax', 'ASGD', 'RMSprop', 'SGD']
         :param lr_at_plateau: bool, protocol to decrease the learning rate.
         :param reduction_factor, int, the factor which we use to reduce the learning rate.
-        :param validation_check: bool, if we want to keep track of validation loss as a stopping criterion.
         :param num_iterations: max number of iterations
         :param sensitive_learning_rate:
         :param reward_decay:
@@ -94,6 +191,11 @@ class OptimizationHyperParameters(object):
         :param checkpoint_every: save the model every checkpoint_every iterations
         :param time: default 0
         :param num_val_samples: int, max number of examples in evaluation
+        :param early_stopping: if False, we do not use the early stopping criteria.
+        :param min_epochs: int, if early_stopping is True, denotes the minimum amount of epochs before we stop
+        execution, if the stopping criterion is satisfied.
+        :param max_epochs: int, if early_stopping is True, denotes the max amount of epochs.
+        :param n_checkpoint_every_epoch: int, if early_stopping, number of checkpoint for every epoch
         """
         self.learning_rate = learning_rate
         self.architecture = architecture
@@ -136,9 +238,9 @@ class ArchitectureHyperParameters(object):
                  rnn_num_layers=2,
                  rnn_dropout=0,
                  rnn_attention=True,
-                 module_stem_num_layers=2,
-                 module_stem_subsample_layers=[],  # it must be a list of ints
-                 module_stem_batchnorm=0,
+                 module_stem_num_layers=6,
+                 module_stem_subsample_layers=[1,3],  # it must be a list of ints
+                 module_stem_batchnorm=1,
                  module_dim=128,
                  stem_dim=64,
                  module_residual=1,
@@ -149,7 +251,7 @@ class ArchitectureHyperParameters(object):
                  classifier_proj_dim=512,
                  classifier_downsample='maxpool2',
                  classifier_fc_dims=[1024],
-                 classifier_batchnorm=0,
+                 classifier_batchnorm=1,
                  classifier_dropout=0.,
                  ):
 
@@ -657,35 +759,37 @@ def generate_experiments(output_path,
 
     # These loops indicate your experiments. Change them accordingly.
     for experiment_case_ in experiment_case_list:  # for each experiment type
-        for method_type_ in method_type_list:
-            for dataset_name_ in dataset_dict["dataset_name"]:
-                for lr_ in lr_array:
-                    for bs_ in batch_list:
-                        dataset_ = Dataset(dataset_id=dataset_name_,
-                                           dataset_id_path=join(data_path, dataset_name_),
-                                           experiment_case=experiment_case_)
 
-                        hyper_opt_ = OptimizationHyperParameters(learning_rate=lr_,
-                                                                 batch_size=bs_)
-                        hyper_arch_ = ArchitectureHyperParameters(model_type=method_type_)
+        for arch in architectures:
+            for method_type_ in method_type_list:
+                for dataset_name_ in dataset_dict["dataset_name"]:
+                    for lr_ in lr_array:
+                        for bs_ in batch_list:
+                            dataset_ = Dataset(dataset_id=dataset_name_,
+                                               dataset_id_path=join(data_path, dataset_name_),
+                                               experiment_case=experiment_case_)
 
-                        hyper_method_ = architecture_dict[method_type_](**dict_method_type)
-                        exp = Experiment(id=idx_base,
-                                         output_path=output_path+'train_'+str(idx_base),
-                                         train_completed=False,
-                                         method_type=method_type_,
-                                         hyper_opt=hyper_opt_,
-                                         hyper_arch=hyper_arch_,
-                                         hyper_method=hyper_method_,
-                                         dataset=dataset_)
-                        idx = exp_exists(exp, info)
-                        if idx is not False:
-                            print("The experiment already exists with id:", idx)
-                            continue
-                        s = json.loads(json.dumps(exp, default=lambda o: o.__dict__))
-                        print(s)
-                        info[str(idx_base)] = s
-                        idx_base += 1
+                            hyper_opt_ = OptimizationHyperParameters(learning_rate=lr_,
+                                                                     batch_size=bs_)
+                            hyper_arch_ = ArchitectureHyperParameters(model_type=method_type_)
+
+                            hyper_method_ = architecture_dict[method_type_](**dicts_arch[arch])
+                            exp = Experiment(id=idx_base,
+                                             output_path=output_path+'train_'+str(idx_base),
+                                             train_completed=False,
+                                             method_type=method_type_,
+                                             hyper_opt=hyper_opt_,
+                                             hyper_arch=hyper_arch_,
+                                             hyper_method=hyper_method_,
+                                             dataset=dataset_)
+                            idx = exp_exists(exp, info)
+                            if idx is not False:
+                                print("The experiment already exists with id:", idx)
+                                continue
+                            s = json.loads(json.dumps(exp, default=lambda o: o.__dict__))
+                            print(s)
+                            info[str(idx_base)] = s
+                            idx_base += 1
 
         # for each experiment type we have a correspondent json
         with open(info_path, 'w') as outfile:
