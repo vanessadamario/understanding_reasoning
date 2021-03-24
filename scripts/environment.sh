@@ -1,3 +1,8 @@
+#!/bin/bash
+
+# config_runtime.sh COPYRIGHT Fujitsu Limited 2021 and FUJITSU LABORATORIES LTD. 2021
+# Authors: Atsushi Kajita (kajita@fixstars.com), G R Ramdas Pillai (ramdas@fixstars.com)
+
 conda create -n vqa python=3.8
 conda activate vqa
 pip install PTable --progress-bar off

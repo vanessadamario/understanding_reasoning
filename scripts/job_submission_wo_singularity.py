@@ -1,3 +1,6 @@
+# job_submission.py COPYRIGHT Fujitsu Limited 2021 and FUJITSU LABORATORIES LTD. 2021
+# Authors: Atsushi Kajita (kajita@fixstars.com), G R Ramdas Pillai (ramdas@fixstars.com)
+
 import ray
 import sys
 import argparse

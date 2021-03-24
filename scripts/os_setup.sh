@@ -1,3 +1,8 @@
+#!/bin/bash
+
+# config_runtime.sh COPYRIGHT Fujitsu Limited 2021 and FUJITSU LABORATORIES LTD. 2021
+# Authors: Atsushi Kajita (kajita@fixstars.com), G R Ramdas Pillai (ramdas@fixstars.com)
+
 # run1.sh
 sudo mkdir /mnt/nvme
 sudo mkfs -q -t ext4 /dev/nvme1n1
