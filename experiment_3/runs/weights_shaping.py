@@ -44,7 +44,7 @@ def save_weights(opt):
         for layer in model[0].stem:
             # print(layer)
             if isinstance(layer, torch.nn.BatchNorm2d):
-                list_stem_transf.append([layer.running_mean, layer.running_var])
+                list_stem_transf.append([layer.running_mean, layer.running_var, layer.weight, layer.bias])
             elif isinstance(layer, torch.nn.Conv2d):
                 list_stem_transf.append([layer.weight, layer.bias])
             elif isinstance(layer, torch.nn.ReLU) or isinstance(layer, torch.nn.MaxPool2d):

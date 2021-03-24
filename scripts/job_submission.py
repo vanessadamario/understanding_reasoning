@@ -12,11 +12,10 @@ import time
 from prettytable import PrettyTable
 from reprint import output
 import signal
+import subprocess
 
-PROGRESS_FILE = '/mnt/instance_store/work/progress.json'
-
-@ray.remote(num_gpus=0.3)
-def act(task, idx):
+@ray.remote(num_gpus=1)
+def act(task, idx, work_dir):
     import subprocess
     import os
     import numpy as np
@@ -31,7 +30,6 @@ def act(task, idx):
 
     tag = 'expIdx' + "_" + str(idx)
     
-    work_dir = '/mnt/instance_store/work/understanding_reasoning/experiment_1'
     prefix = work_dir + '/logs/'
     
     log_path = prefix+tag
@@ -45,7 +43,9 @@ def act(task, idx):
     log_redirection = " 2>&1 | ts '<" + tag + ">' | ts '[" + hostname + "]' | ts '[%Y-%m-%d %H:%M:%S]' | multilog s10000000 n2 " + log_path
     path_movement = 'cd ' + work_dir + '; '
 
-    ret = os.system(path_movement + '/bin/bash -c "set -o pipefail; source /home/ubuntu/.bashrc; ' + task + log_redirection + '"')
+    singularity_head = ' singularity exec --nv ' + '/om5/user/gpillai/vqa-runtime.simg'
+
+    ret = os.system(path_movement + singularity_head + ' /bin/bash -c "set -o pipefail; ' + task + log_redirection + '"')
 
     if(ret != 0):
         py_error = int(bin(ret)[2:-8], 2)
@@ -117,6 +117,8 @@ def getargs(argv):
     sys.argv[1:] = allargs[:cmdpos]
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment_index', type=str, required=True)
+    parser.add_argument('--work_path', type=str, required=True)
+    
     args = parser.parse_args()
     exp_ids = args.experiment_index.split(',')
     exps = []
@@ -133,33 +135,52 @@ def getargs(argv):
 
     sys.argv[1:] = backup_args
 
-    return exps, command
+    return exps, command, args.work_path
 
-def submit_job(multi_cmds, exps):
+def submit_job(multi_cmds, exps, wrk_path):
     RUNS=len(exps)
     print("Submitting job to ray")
-    rets = [act.remote(multi_cmds[i], exps[i]) for i in range(len(exps))]
+    rets = [act.remote(multi_cmds[i], exps[i], wrk_path) for i in range(len(exps))]
     return rets
+
+def get_progress(tag):
+    fname = 'results/' + tag + '/model.json'
+    fp = Path(fname)
+    if fp.exists():
+        try:
+            with open(fname, 'r') as f:
+                d = json.load(f)
+            completion = str(round((d['model_t'] / d['optimization_kwargs']['num_iterations']) * 100, 2)) + '%'
+            score = d['best_val_acc']
+            return completion, score
+        except:
+            return '0%', '0'
+    else:
+        return '-1', '0'
 
 def mainrun(argv):
 
+
     # Parse the command line arguements
-    exps, command = getargs(argv)
+    exps, command, wrk_path = getargs(argv)
+
+    gp = subprocess.Popen(['python', '../scripts/dash_app.py', str(wrk_path)])
 
     multi_cmds = get_multi_commands(command, exps)
-
+    print("Got the commands")
     # Initialize the ray
     try:
         ray.init(address='auto', _redis_password='5241590000000000')
     except:
         raise RuntimeError("Ray not started")
 
-
-    rets = submit_job(multi_cmds, exps)
-    starttime = datetime.now()
+    print("Initialized ray")
+    rets = submit_job(multi_cmds, exps, wrk_path)
+    st = {}
     et = {}
     for ctr in range(len(rets)):
-        et[ctr] = datetime.now() - starttime
+        st[ctr] = datetime.now()
+        et[ctr] = None
     with output(initial_len=6 + len(rets), interval=0) as output_lines:
         while True:
             rd = []
@@ -171,7 +192,7 @@ def mainrun(argv):
                     rd.append(i)
                 for i in n:
                     nrd.append(i)
-                    et[ctr] = datetime.now() - starttime
+                    
             
             case_info = os.path.basename(os.getcwd())
             dash_data = {}
@@ -180,26 +201,53 @@ def mainrun(argv):
             dash_data['info'] = {}
             dash_data['info']['Tag'] = []
             dash_data['info']['Status'] = []
+            dash_data['info']['Progress'] = []
+            dash_data['info']['BestValAcc'] = []
             dash_data['info']['Elapsed Time'] = []
 
             x = PrettyTable()
             x.title = 'Job Status - ' + str(datetime.now().strftime("%Y.%m.%d - %H:%M:%S%p"))
-            x.field_names = ['Tag', 'Status', 'Elapsed Time']
+            x.field_names = ['Tag', 'Status', 'Progress', 'Best Val Acc', 'Elapsed Time']
             for i in range(len(rets)):
                 obj = rets[i]
-                tagname = 'expIdx' + '_' + str(exps[i])
-                if(obj in rd):
+                tagname = 'train' + '_' + str(exps[i])
+                c, a = get_progress(tagname)
+                ct = datetime.now()
+                
+                if(c == '-1'):
+                    st[i] = ct
                     dash_data['info']['Tag'].append(tagname)
-                    dash_data['info']['Status'].append('Finished')
-                    dash_data['info']['Elapsed Time'].append(str(et[i]))
-                    x.add_row([tagname, "Finished", str(et[i])])
-                if(obj in nrd):
-                    dash_data['info']['Tag'].append(tagname)
-                    dash_data['info']['Status'].append('In Progress...')
-                    dash_data['info']['Elapsed Time'].append(str(et[i]))
-                    x.add_row([tagname, "In Progress...", str(et[i])])
+                    dash_data['info']['Progress'].append('0%')
+                    dash_data['info']['BestValAcc'].append('0')
+                    dash_data['info']['Elapsed Time'].append('00:00:00.00')
 
-            with open(PROGRESS_FILE, 'w') as f:
+                    if(obj in rd):
+                        dash_data['info']['Status'].append('Possible Error!')
+                        x.add_row([tagname, "Waiting", '0%', '0', '00:00:00.00'])
+                    else:
+                        dash_data['info']['Status'].append('Waiting')
+                        x.add_row([tagname, "Waiting", '0%', '0', '00:00:00.00'])
+                else:
+                    
+                    if(obj in rd):
+                        if(et[i] is None):
+                            et[i] = ct - st[i]
+                        dash_data['info']['Tag'].append(tagname)
+                        dash_data['info']['Status'].append('Finished')
+                        dash_data['info']['Progress'].append('100%')
+                        dash_data['info']['BestValAcc'].append(a)
+                        dash_data['info']['Elapsed Time'].append(str(et[i]))
+                        x.add_row([tagname, "Finished", '100%', a, str(et[i])])
+                    if(obj in nrd):
+                        et[i] = ct - st[i]
+                        dash_data['info']['Tag'].append(tagname)
+                        dash_data['info']['Status'].append('In Progress...')
+                        dash_data['info']['Progress'].append(c)
+                        dash_data['info']['BestValAcc'].append(a)
+                        dash_data['info']['Elapsed Time'].append(str(et[i]))
+                        x.add_row([tagname, "In Progress...", c, a, str(et[i])])
+
+            with open(wrk_path + '/progress.json', 'w') as f:
                 json.dump(dash_data, f, indent=4)
 
             xs = str(x).split('\n')
@@ -212,8 +260,6 @@ def mainrun(argv):
 
     print("Finished all tasks. Exiting.")
 
-
-
 if __name__ == '__main__':
     mainrun(sys.argv[1:])
-
+    

@@ -75,9 +75,29 @@ def run_train(id):
     :param id: id of the experiment
     """
     # TODO: use mostly the functions and models from systematic generalization
-    from runs.train import check_and_train
     from runs import experiments
+    from runs.train import check_and_train
+    from pathlib import Path
+    import json
+    import os
     opt = experiments.get_experiment(output_path, id)  # Experiment instance
+    with open('results/train.json', 'r') as f:
+        d = json.load(f)
+
+    if not os.path.exists(d[str(id)]['dataset']['dataset_id_path']):
+        return
+
+    if(FLAGS.load_model == True):
+      fname = output_path +'/train_%d' %id + '/model.json'
+      fp = Path(fname)
+      if not fp.exists():
+        FLAGS.load_model = False
+      fname = output_path +'/flag_completed/complete_%d.txt' %id
+      fp = Path(fname)
+      if fp.exists():
+        print("Experiment has completed!")
+        return
+    print("Load model at train: ", FLAGS.load_model)
     check_and_train(opt, output_path, FLAGS.load_model)
 
 
