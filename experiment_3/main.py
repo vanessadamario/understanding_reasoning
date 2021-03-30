@@ -23,6 +23,9 @@ parser.add_argument('--host_filesystem', type=str, required=True)
 parser.add_argument('--on_validation', type=bool, required=False, default=False)
 parser.add_argument('--test_oos', type=bool, required=False, default=False)
 parser.add_argument('--test_seen', type=bool, required=False, default=False)
+parser.add_argument('--modify_path', type=bool, required=False, default=False)
+parser.add_argument('--root_data_folder', type=str, required=False, default=None)
+parser.add_argument('--output_path', type=str, required=False, default='results/')
 parser.add_argument('--run', type=str, required=True)
 
 
@@ -32,7 +35,8 @@ output_path = {
     'om': '/om/user/vanessad/understanding_reasoning/experiment_3',
     'om2': '/om2/user/vanessad/understanding_reasoning/experiment_3',
     'vanessa': '/Users/vanessa/src/understanding_reasoning/experiment_3'}[FLAGS.host_filesystem]
-output_path = join(output_path, 'results/')
+output_path = join(output_path, FLAGS.output_path)
+
 # output_path = join(output_path, 'results/')
 print(output_path)
 PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_3/data_generation/MNIST_splits"
@@ -69,6 +73,12 @@ def run_test(id):
     from runs import experiments
     # print(FLAGS.on_validation)
     opt = experiments.get_experiment(output_path, id)
+
+    if FLAGS.modify_path:
+        _data_name = opt.dataset.dataset_id
+        _train_id = opt.id
+        opt.dataset.dataset_id_path = join(FLAGS.root_data_folder, _data_name)
+        opt.output_path = join(output_path, 'train_%i' % _train_id)
     # print("On validation: ", FLAGS.on_validation)
     check_and_test(opt, flag_out_of_sample=FLAGS.test_oos, flag_validation=True, test_seen=True)
     check_and_test(opt, flag_out_of_sample=FLAGS.test_oos, flag_validation=False, test_seen=True)

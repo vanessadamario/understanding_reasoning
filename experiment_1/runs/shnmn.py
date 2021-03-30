@@ -6,7 +6,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from runs.layers import build_stem, build_classifier
+from runs.layers import build_stem, build_classifier, ModulatedStem
 from runs.data_attribute_random import map_question_idx_to_attribute_category as map_
 # from vr.models.layers import init_modules, ResidualBlock, SimpleVisualBlock, GlobalAveragePool, Flatten
 # from vr.models.layers import build_classifier, build_stem, ConcatBlock
@@ -295,9 +295,11 @@ class SHNMN(nn.Module):
         separated_stem=False,
         separated_module=False,
         separated_classifier=False,
+        modulated_stem=False,
         **kwargs):
 
         super().__init__()
+        self.module_dim = module_dim
         self.num_modules = num_modules
         # alphas and taus from Overleaf Doc.
         self.hard_code_alpha = hard_code_alpha
@@ -306,17 +308,29 @@ class SHNMN(nn.Module):
         self.separated_stem = separated_stem
         self.separated_module = separated_module
         self.separated_classifier = separated_classifier
+        self.modulated_stem = modulated_stem
         if self.separated_stem:
             # if the specialization is at the beginning
             # we will have it in all the architecture
             self.separated_module = True
             self.separated_classifier = True
 
+        print('modulated stem')
+        print(self.modulated_stem)
+        if self.modulated_stem:
+            if self.use_module != 'find':
+                raise ValueError('the architecture is not as we expect')
+            if not self.separated_module:
+                raise ValueError('the architecture is not as we expect')
+            if not self.separated_classifier:
+                raise ValueError('the architecture is not as we expect')
+
         if self.use_module == "find":
             self.func_ = map_
         else:
             self.func_ = lambda x: x
-
+        indexes_types = np.array([self.func_(vv_) for vv_ in vocab['question_idx_to_token'].keys()])
+        subgroups = np.unique(indexes_types).size
         num_question_tokens = 3
         len_embedding = len(vocab["question_token_to_idx"])
 
@@ -534,8 +548,19 @@ class SHNMN(nn.Module):
             tmp = self.stem(Variable(torch.zeros([1, feature_dim[0],
                                                   feature_dim[1],
                                                   feature_dim[2]])))
+        if self.modulated_stem:
+            # self.stem_embedding = nn.Embedding(subgroups, tmp.size(1))
+            self.stem = ModulatedStem(feature_dim[0], stem_dim, module_dim,
+                                      num_layers=stem_num_layers,
+                                      subsample_layers=stem_subsample_layers,
+                                      kernel_size=stem_kernel_size,
+                                      padding=stem_padding,
+                                      with_batchnorm=stem_batchnorm,
+                                      dim_embedding=len(vocab['question_token_to_idx'])
+                                      ).to(device)
+
         module_H = tmp.size(2)  # 7 #
-        module_W = tmp.size(3)  #  7 #
+        module_W = tmp.size(3)  # 7 #
 
         print("\nModule H, W", module_H, module_W)
         num_answers = len(vocab['answer_idx_to_token'])
@@ -607,8 +632,21 @@ class SHNMN(nn.Module):
 
             # print(stemmed_img.shape)
         else:  # separated_stem is False (original code)
-            stemmed_img = self.stem(image).unsqueeze(1)  # B x 1 x C x H x W
-        # print("stemmed image shape: ", stemmed_img.shape)
+            if self.modulated_stem:
+                stemmed_img = self.stem(image, question).unsqueeze(1)
+
+            else:
+                stemmed_img = self.stem(image).unsqueeze(1)  # B x 1 x C x H x W
+
+                # qqq = [self.func_(int(qv_)) for qv_ in question]
+                # qqq = torch.from_numpy(np.array(qqq)).to(device)
+                # qqq = torch.IntTensor([self.func_(int(qv_)) for qv_ in question], device=device)
+                # question_rep = self.stem_embedding(qqq)
+                # question_rep = torch.cat([self.stem_embedding[self.func_(int(qv_))]
+                #                           for qv_ in question])
+                # question_rep = question_rep.view(-1, 1, self.module_dim, 1, 1)
+                # stemmed_img = stemmed_img * question_rep
+            #print("Stemmed image shape: ", stemmed_img.shape)
 
         if self.use_module == "find" and self.separated_module:
             func = [self.func[str(self.func_(int(q_)))] for q_ in question_copy]

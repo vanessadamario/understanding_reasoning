@@ -41,11 +41,11 @@ print("dense", FLAGS.dense)
 
 # TODO DELETE: test
 # where to save and retrieve the experiments
-# output_path = {
-#     'om2': '/om2/user/vanessad/understanding_reasoning/experiment_1',
-#     'om': '/om/user/vanessad/understanding_reasoning/experiment_1',
-#     'vanessa': '/Users/vanessa/src/understanding_reasoning/experiment_1'}[FLAGS.host_filesystem]
-# output_path = join(output_path, 'results/')
+output_path = {
+    'om2': '/om2/user/vanessad/understanding_reasoning/experiment_1',
+    'om': '/om/user/vanessad/understanding_reasoning/experiment_1',
+    'vanessa': '/Users/vanessa/src/understanding_reasoning/experiment_1'}[FLAGS.host_filesystem]
+# output_path = join(output_path, 'pilot_stem_modulation/')
 #print(output_path)
 PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_1/data_generation/MNIST_splits"
 
@@ -99,8 +99,7 @@ def generate_experiments(id):
     output_data_folder = join(os.path.dirname(os.path.dirname(output_path)),
                               'data_generation/datasets')
     experiments.generate_experiments(output_path,
-                                     output_data_folder,
-                                     shift=0)
+                                     output_data_folder)
     # change shift based on what you need
 
 
@@ -153,10 +152,7 @@ def update_json(id):
     from runs.update import check_update
     """ Write on the json if the experiments are completed,
     by changing the flag. """
-    if FLAGS.new_output_path:
-        output_path = FLAGS.output_path
-    print(output_path)
-    check_update(output_path)
+    check_update(FLAGS.output_path)
 
 
 def generate_query(id):

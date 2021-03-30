@@ -6,18 +6,18 @@ from os.path import join
 experiment_case_list = [1]  # [1] for VQA and binary answers  # case 2, four VQAs per image
 lr_array = [1e-2, 5e-3, 1e-3, 1e-4]
 method_type_list = ["SHNMN"]
-batch_list = [128]
-dataset_dict = {"dataset_name": ["dataset_15",
-                                 "dataset_16",
-                                 "dataset_17",
-                                 "dataset_18",
-                                 "dataset_19",
-                                 "dataset_20",
-                                 "dataset_21",
-                                 "dataset_22",
-                                 "dataset_23",
-                                 "dataset_24"
-                                ]
+batch_list = [256, 128]
+dataset_dict = {"dataset_name": ['dataset_15',
+                                 'dataset_26',
+                                 'dataset_16',
+                                 'dataset_27',
+                                 'dataset_20',
+                                 'dataset_14',
+                                 'dataset_21',  #
+                                 'dataset_25',  #
+                                 'dataset_17',  #
+                                 'dataset_22'
+                                 ]
                 }
 dict_method_type = {"use_module": "find",
                     "model_type": 'soft',
@@ -34,15 +34,16 @@ dict_method_type = {"use_module": "find",
                     "stem_subsample_layers": [1, 3],
                     "stem_kernel_size": [3],
                     "stem_padding": None,
-                    "stem_batchnorm": 1,
+                    "stem_batchnorm": 0,
                     "classifier_fc_layers": [1024],
                     "classifier_proj_dim": 512,
-                    "classifier_batchnorm": 1,
+                    "classifier_batchnorm": 0,
                     "classifier_downsample": "maxpoolfull",
                     "num_modules": 1,
+                    "modulated_stem": True,
                     "separated_stem": False,
-                    "separated_module": False,
-                    "separated_classifier": False
+                    "separated_module": True,
+                    "separated_classifier": True
                     }
 
 
@@ -69,7 +70,7 @@ class OptimizationHyperParameters(object):
                  checkpoint_every=200,  # 1000, brute force (train until num_iterations)
                  time=0,
                  num_val_samples=1000,
-                 early_stopping=True,
+                 early_stopping=False,
                  previous_epochs=2,
                  min_epochs=3,
                  max_epochs=500,
@@ -418,6 +419,7 @@ class SHNMNHyperParameters(object):
                  classifier_downsample="maxpoolfull",
                  classifier_batchnorm=0,
                  num_modules=3,
+                 modulated_stem=False,
                  separated_stem=False,
                  separated_module=True,
                  separated_classifier=True
@@ -458,6 +460,7 @@ class SHNMNHyperParameters(object):
         self.classifier_downsample = classifier_downsample
         self.classifier_batchnorm = classifier_batchnorm
         self.num_modules = num_modules
+        self.modulated_stem = modulated_stem
         self.separated_stem = separated_stem
         self.separated_module = separated_module
         self.separated_classifier = separated_classifier

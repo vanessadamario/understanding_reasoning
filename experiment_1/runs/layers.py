@@ -13,6 +13,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import kaiming_normal_, kaiming_uniform_
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 class SequentialSaveActivations(nn.Sequential):
      # def __init__(self, *args, **kwargs): #  layers):
         # pass
@@ -103,6 +105,99 @@ class Flatten(nn.Module):
         return x.view(x.size(0), -1)
 
 
+class ModulatedStem(nn.Module):
+    def __init__(self,
+                 feature_dim,
+                 stem_dim,
+                 module_dim,
+                 num_layers=2,
+                 with_batchnorm=True,
+                 kernel_size=[3],
+                 stride=[1],
+                 padding=None,
+                 subsample_layers=None,
+                 acceptEvenKernel=False,
+                 dim_embedding=None
+                 ):
+        super(ModulatedStem, self).__init__()
+        self.module_dim = module_dim
+        self.stem_dim = stem_dim
+        self.num_layers = num_layers
+
+        layers = []
+        prev_dim = feature_dim
+
+        if len(kernel_size) == 1:
+            kernel_size = num_layers * kernel_size
+        if len(stride) == 1:
+            stride = num_layers * stride
+        if padding is None:
+            padding = num_layers * [None]
+        if len(padding) == 1:
+            padding = num_layers * padding
+        if subsample_layers is None:
+            subsample_layers = []
+        if dim_embedding is None:
+            raise ValueError('Need to specify the embedding size')
+        if stem_dim == module_dim:
+            self.embedding_modulation_in = nn.Embedding(dim_embedding, stem_dim)
+            self.flag_single_embd = True
+        else:
+            self.embedding_modulation_in = nn.Embedding(dim_embedding, stem_dim)
+            self.embedding_modulation_out = nn.Embedding(dim_embedding, module_dim)
+            self.flag_single_embd = False
+
+        layer_id = []
+        for i, cur_kernel_size, cur_stride, cur_padding in zip(range(num_layers), kernel_size, stride, padding):
+            # print('current layer: %i' %i)
+            curr_out = module_dim if (i == (num_layers - 1)) else stem_dim
+
+            if cur_padding is None:  # Calculate default padding when None provided
+                if cur_kernel_size % 2 == 0 and not acceptEvenKernel:
+                    raise NotImplementedError
+                cur_padding = cur_kernel_size // 2
+            # print(prev_dim, curr_out, cur_kernel_size, cur_stride, cur_padding)
+            layers.append(nn.Conv2d(prev_dim, curr_out,
+                                    kernel_size=cur_kernel_size, stride=cur_stride, padding=cur_padding,
+                                    bias=not with_batchnorm).to(device))
+            layer_id.append(i)
+
+            if with_batchnorm:
+                layers.append(nn.BatchNorm2d(curr_out).to(device))
+                layer_id.append(i)
+
+            layers.append(nn.ReLU(inplace=True).to(device))
+            layer_id.append(i)
+
+            if i in subsample_layers:
+                layers.append(nn.MaxPool2d(kernel_size=2, stride=2).to(device))
+                layer_id.append(i)
+
+            prev_dim = curr_out
+        self.layers = layers
+        self.layer_id = layer_id
+
+    def forward(self, input_x, input_q):
+        #  We return the modulated stem
+        # :param input_x: input image
+        # :param input_q: input question
+        #
+        for i, (layer_, l_id_) in enumerate(zip(self.layers, self.layer_id)):
+            # print(l_id_, layer_)
+            input_x = layer_(input_x)
+            # print(input_x.shape)
+            if isinstance(layer_, nn.ReLU):
+                # print('embedding')
+                # IT MUST BE EVERY 2
+                if l_id_ % 2 == 1:   # every two layers (1,3,5)
+                    if l_id_ == self.num_layers - 1 and not self.flag_single_embd:
+                        question_rep = self.embedding_modulation_out(input_q)
+                    else:
+                        question_rep = self.embedding_modulation_in(input_q)
+                    input_x = input_x * question_rep.view(-1, self.module_dim, 1, 1)
+        return input_x
+
+
 def build_stem(feature_dim,
                stem_dim,
                module_dim,
@@ -139,6 +234,7 @@ def build_stem(feature_dim,
         if with_batchnorm:
             layers.append(nn.BatchNorm2d(curr_out))
         layers.append(nn.ReLU(inplace=True))
+        # apply embedding
         if i in subsample_layers:
             layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
         prev_dim = curr_out

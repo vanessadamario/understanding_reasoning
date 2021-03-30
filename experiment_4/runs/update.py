@@ -18,13 +18,19 @@ def check_update(output_path):
     # here we open the json and we change the flag
     with open(output_path + 'train.json') as infile:
         info = json.load(infile)
-
     # set all to False
-    for exp_id in range(len(info)):
-        info[str(exp_id)]['train_completed'] = False
+    for exp_id in info.keys():
+        info[exp_id]['train_completed'] = False
+    # for exp_id in range(len(info)):
+        # print(exp_idx)
+        #   info[str(exp_id)]['train_completed'] = False
 
     for exp_id in flag_txt:
-        info[exp_id]['train_completed'] = True
+        print(exp_id)
+        try:
+            info[exp_id]['train_completed'] = True
+        except:
+            continue
 
     with open(output_path + 'train.json', 'w') as outfile:
         json.dump(info, outfile)
