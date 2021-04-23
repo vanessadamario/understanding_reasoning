@@ -637,6 +637,7 @@ class SHNMN(nn.Module):
 
             else:
                 stemmed_img = self.stem(image).unsqueeze(1)  # B x 1 x C x H x W
+        self.activity_stem = stemmed_img
 
                 # qqq = [self.func_(int(qv_)) for qv_ in question]
                 # qqq = torch.from_numpy(np.array(qqq)).to(device)
@@ -691,6 +692,7 @@ class SHNMN(nn.Module):
         else:
             classifier_output = self.classifier(h_final)
         # print("classifier output shape", classifier_output.shape)
+        self.activity_classifier = classifier_output
         return classifier_output
 
     def forward(self, image, question):

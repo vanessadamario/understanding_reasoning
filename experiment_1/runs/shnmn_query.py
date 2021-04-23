@@ -508,8 +508,11 @@ class SHNMN(nn.Module):
             stemmed_lst = []
             for j_ in range(self.len_embedding):
                 stemmed_lst.append(self.stem[j_](image).unsqueeze(1))
+            self.activity_stem = stemmed_lst
+
         else:
             stemmed_img = self.stem(image).unsqueeze(1)  # B x 1 x C x H x W
+            self.activity_stem = stemmed_img
 
         embedded_questions = self.question_embeddings(question)
         for j_ in range(self.len_embedding):
@@ -524,6 +527,7 @@ class SHNMN(nn.Module):
                                           self.func)
 
         h_final = [h_[:, -1, :, :, :].to(device) for h_ in self.h_list]
+        self.activity_classifier = [cl_(h_) for cl_, h_ in zip(self.classifiers_list, h_final)]
         return [cl_(h_) for cl_, h_ in zip(self.classifiers_list, h_final)]
 
     def forward(self, image, question):

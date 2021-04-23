@@ -106,6 +106,8 @@ class Flatten(nn.Module):
 
 
 class ModulatedStem(nn.Module):
+    # TODO we need to save the convolutional layers
+    # use the ModuleList class
     def __init__(self,
                  feature_dim,
                  stem_dim,
@@ -174,7 +176,7 @@ class ModulatedStem(nn.Module):
                 layer_id.append(i)
 
             prev_dim = curr_out
-        self.layers = layers
+        self.layers = nn.ModuleList(layers)
         self.layer_id = layer_id
 
     def forward(self, input_x, input_q):

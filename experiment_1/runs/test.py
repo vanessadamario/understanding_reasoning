@@ -88,6 +88,7 @@ def check_accuracy_test(opt, filename, test_loader, dtype, ee, pg=None):
     ee.type(dtype)
     ee.eval()
 
+    print(ee)
     all_scores = []
     all_correct = []
     all_probs = []
@@ -253,7 +254,8 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False,
     # this must happen in the main.py
 
     if not opt.train_completed:
-        raise ValueError("Experiment %i did not train." % opt.id)
+        # raise ValueError("Experiment %i did not train." % opt.id)
+        print("Experiment %i did not train." % opt.id)
 
     if test_seen:
         if flag_validation:

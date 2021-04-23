@@ -21,7 +21,7 @@ def check_update(output_path):
         info = json.load(infile)
 
     # set all to False
-    for exp_id in range(len(info)):
+    for exp_id in info.keys():
         info[str(exp_id)]['train_completed'] = False
 
     for exp_id in flag_txt:
