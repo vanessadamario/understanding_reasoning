@@ -333,7 +333,7 @@ class ActivationClass(object):
         else:
             self.compute_mean_std(stem=stem, module=module, classifier=classifier)
 
-    def map_into_attribute(self, q):
+    def map_into_attribute(self, q, net_part='stem'):
         """
         This function maps the question (one among the 21 attribute instances)
         into the attribute family. This is necessary in the stem, but not
@@ -341,9 +341,12 @@ class ActivationClass(object):
         one of the 21 attributes
         :param q: question is an integer
         """
-        if self.opt.dataset.experiment_case == 1:
+        if not self.opt.dataset.experiment_case == 1:
+            raise ValueError('This case does not exist')
+
+        if net_part == 'stem':
             # experiment_case 1 is vqa
-            if self.opt.hyper_method.separated_stem:
+            if self.opt.hyper_method.separated_stem:  # separated_classifier
                 # separate stem, else we do not do anything
                 if self.opt.hyper_method.use_module == 'find':
                     if q in category_idx:
@@ -362,6 +365,28 @@ class ActivationClass(object):
                     raise ValueError('Not implemented')
             else:
                 return 0
+
+        elif net_part == 'classifier':
+            if self.opt.hyper_method.separated_classifier:  # separated_classifier
+                # separate stem, else we do not do anything
+                if self.opt.hyper_method.use_module == 'find':
+                    if q in category_idx:
+                        return 0
+                    elif q in color_idx:
+                        return 1
+                    elif q in brightness_idx:
+                        return 2
+                    elif q in size_idx:
+                        return 3
+                    else:
+                        raise ValueError('q does not fall in any attribute type')
+                elif self.opt.hyper_method.use_module == 'residual':
+                    return q
+                else:
+                    raise ValueError('Not implemented')
+            else:
+                return 0
+
 
     def compute_mean_std(self, stem=True, module=False, classifier=False):
         """
@@ -406,6 +431,7 @@ class ActivationClass(object):
             questions_npy = questions.cpu().detach().numpy()
 
             feats_var = Variable(feats.to(device))
+            print(self.ee)
             self.ee(feats_var, questions_var)
             # we evaluate
 
@@ -492,7 +518,7 @@ class ActivationClass(object):
 
                     elif self.opt.dataset.experiment_case == 1:
                         # for each question in the batch we map into the branch
-                        idx_stem = np.array([self.map_into_attribute(qqq) for qqq in questions_npy])
+                        idx_stem = np.array([self.map_into_attribute(qqq, net_part='stem') for qqq in questions_npy])
                         # for each example, we need to consider the question
                         for id_ex, (q_, id_st_, tmp_act, tmp_tuple) in enumerate(zip(questions_npy, idx_stem,
                                                                                      tmp_activations_s, tmp_attributes)):
@@ -587,6 +613,7 @@ class ActivationClass(object):
 
             # CLASSIFIER - CLASSIFIER - CLASSIFIER - CLASSIFIER - CLASSIFIER - CLASSIFIER - CLASSIFIER - CLASSIFIER
             if classifier:
+                print(self.ee.activity_classifier.shape)
                 if 'activity_classifier' in self.ee.__dict__.keys():
                     if isinstance(self.ee.activity_classifier, list) and self.opt.dataset.experiment_case == 0:
                         list_attribute_class = True
@@ -634,39 +661,46 @@ class ActivationClass(object):
 
                     elif self.opt.dataset.experiment_case == 1:
                         tmp_activations_c = self.ee.activity_classifier.cpu().detach().numpy()  # for each attr type
+                        print('\n temporary activations')
+                        print(tmp_activations_c.shape)
 
                         if i_ == 0:
                             if self.opt.hyper_method.separated_classifier:
                                 if self.opt.hyper_method.use_module == 'find':
-                                    factor_mean_std_c = np.zeros((len(self.vocab_q), 4))
-                                    activations_c = np.zeros((len(self.vocab_q),) + (4,) + (4,) + tmp_activations_c.shape[1:])
+                                    factor_mean_std_c = np.zeros((len(self.vocab_q), 4), dtype=type_)  # attributes, #classifiers
+                                    activations_c = np.zeros((len(self.vocab_q),) +  # attributes
+                                                             (4,) +  # stats
+                                                             (4,) +  # #classifiers per 4 attributes
+                                                             tmp_activations_c.shape[1:])  # outputs (2)
                                 elif self.opt.hyper_method.use_module == 'residual':
-                                    factor_mean_std_c = np.zeros((len(self.vocab_q), len(self.vocab_q)))
+                                    factor_mean_std_c = np.zeros((len(self.vocab_q), len(self.vocab_q)), dtype=type_)
                                     activations_c = np.zeros((len(self.vocab_q),) + (4,) + (len(self.vocab_q),) + tmp_activations_c.shape[1:])
                                 else:
                                     raise ValueError('Not implemented')
                             else:
-                                factor_mean_std_c = np.zeros((len(self.vocab_q), 1))
+                                factor_mean_std_c = np.zeros((len(self.vocab_q), 1), dtype=type_)
                                 activations_c = np.zeros((len(self.vocab_q),) + (4,) + (1,) + tmp_activations_c.shape[1:])
 
                         # activations_c = np.zeros(((len(self.vocab_q),) + (4,) + (len(self.vocab_q),) + (2,)))
                         # mean, var, sample var, maximum activation
                         for id_ex, (q_, tmp_act, tmp_tuple) in enumerate(zip(questions_npy, tmp_activations_c, tmp_attributes)):
+                            idx_classifier = self.map_into_attribute(q_, net_part='classifier')
                             for el_tuple in tmp_tuple[:4]:  # for elements
                                 mask_ = np.zeros(activations_c.shape, dtype=bool)
-                                mask_[self.vocab_q[el_tuple], -1, self.map_into_attribute(q_)] = True
-                                mask_act = activations_c[self.vocab_q[el_tuple], -1, self.map_into_attribute(q_)] < tmp_act
-                                mask_[self.vocab_q[el_tuple], -1, self.map_into_attribute(q_)] *= mask_act
+                                mask_[self.vocab_q[el_tuple], -1, idx_classifier] = True
+                                mask_act = activations_c[self.vocab_q[el_tuple], -1, idx_classifier] < tmp_act
+                                mask_[self.vocab_q[el_tuple], -1, idx_classifier] *= mask_act
                                 activations_c[mask_] = tmp_act[mask_act]  # we save the max here
 
-                                existing_aggregate = (factor_mean_std_c[self.vocab_q[el_tuple], self.map_into_attribute(q_)],
-                                                      activations_c[self.vocab_q[el_tuple], 0, self.map_into_attribute(q_)],
-                                                      activations_c[self.vocab_q[el_tuple], 1, self.map_into_attribute(q_)])
+                                existing_aggregate = (factor_mean_std_c[self.vocab_q[el_tuple], idx_classifier],
+                                                      activations_c[self.vocab_q[el_tuple], 0, idx_classifier],
+                                                      activations_c[self.vocab_q[el_tuple], 1, idx_classifier])
                                 new_aggregate = update_values(existing_aggregate,
                                                               tmp_act)
-                                factor_mean_std_c[self.vocab_q[el_tuple], self.map_into_attribute(q_)] = new_aggregate[0]  # we count
-                                activations_c[self.vocab_q[el_tuple], 0, self.map_into_attribute(q_)] = new_aggregate[1]  # mean
-                                activations_c[self.vocab_q[el_tuple], 1, self.map_into_attribute(q_)] = new_aggregate[2]  # M2
+                                factor_mean_std_c[self.vocab_q[el_tuple], idx_classifier] = new_aggregate[0]  # we count
+                                activations_c[self.vocab_q[el_tuple], 0, idx_classifier] = new_aggregate[1]  # mean
+                                activations_c[self.vocab_q[el_tuple], 1, idx_classifier] = new_aggregate[2]  # M2
+
                     else:
                         raise ValueError('Experiment case does not exist')
 
@@ -707,11 +741,15 @@ class ActivationClass(object):
                         activations_m[self.vocab_q[k_], 1, :] = var
                         activations_m[self.vocab_q[k_], 2, :] = sample_var
                 elif self.opt.dataset.experiment_case == 1:
+                    # print('sizes module')
+                    # print(factor_mean_std_m.shape)
+                    # print(activations_m.shape)
                     for k_ in sorted(self.vocab_q.keys()):
                         for jjj in range(factor_mean_std_m.shape[1]):
                             tuple__ = (factor_mean_std_m[self.vocab_q[k_], jjj],
                                        activations_m[self.vocab_q[k_], 0, jjj],
                                        activations_m[self.vocab_q[k_], 1, jjj])
+                            # print(tuple__)
                             mean, var, sample_var = finalize_values(tuple__)
                             activations_m[self.vocab_q[k_], 0, jjj] = mean
                             activations_m[self.vocab_q[k_], 1, jjj] = var
