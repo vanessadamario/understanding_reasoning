@@ -1,8 +1,8 @@
 import torch
 import numpy as np
+import os
 from os.path import join
 from torch.utils.data import Dataset, DataLoader
-
 
 
 def _dataset_to_tensor(dset, mask=None, dtype=None):
@@ -18,16 +18,22 @@ class DataTorch(Dataset):
     def __init__(self,
                  all_feats,
                  all_questions,
-                 all_labels
+                 all_labels,
+                 split_files=False
                  ):
         self.all_questions = all_questions
         self.all_labels = all_labels
         self.all_feats = all_feats
+        self.split_files = split_files
 
     def __getitem__(self, index):
         """Generates one sample of data
         :param index: index for pick one example"""
-        feat = torch.FloatTensor(self.all_feats[index].astype(np.float32))
+        if self.split_files:
+            input_ = np.load(join(self.all_feats, '%i.npy' % index))
+        else:
+            input_ = self.all_feats[index]
+        feat = torch.FloatTensor(input_.astype(np.float32))
         question = self.all_questions[index]
         label = self.all_labels[index]
 
@@ -70,14 +76,27 @@ class DataTorchLoader(DataLoader):
             all_feats = np.array([im__ for i, im__ in enumerate(np_all_feats) for j in range(q_)])
 
         else:
+            files_feats = [f_ for f_ in os.listdir(path_data) if f_.startswith('feats_%s' % split)]
+            if len(files_feats) > 1:
+                raise ValueError('Ambiguity in reading the feature file')
+            if files_feats[0].endswith('npy'):
+                split_files = False
+                try:
+                    all_feats = np.load(join(path_data, "feats_%s.npy" % split))
+                except:
+                    all_feats = np.load(join(path_data, "feats_%s.npy" % split), allow_pickle=True)
+                if np.ndim(all_feats) == 3:
+                    n, dim_x, dim_y = all_feats.shape
+                    all_feats = all_feats.reshape(n, 1, dim_x, dim_y)
+            else:
+                split_files = True
+                all_feats = join(path_data, 'feats_%s' % split)
+
+
             all_questions = _dataset_to_tensor(np.load(join(path_data, questions_file)))
             all_labels = _dataset_to_tensor(np.load(join(path_data, answers_file)))
-            all_feats = np.load(join(path_data, "feats_%s.npy" % split))
 
-        if np.ndim(all_feats) == 3:
-            n, dim_x, dim_y = all_feats.shape
-            all_feats = all_feats.reshape(n, 1, dim_x, dim_y)
-        self.dataset = DataTorch(all_feats, all_questions, all_labels)
+        self.dataset = DataTorch(all_feats, all_questions, all_labels, split_files=split_files)
         shuffle_data = True  # if split == "train" else False
         super(DataTorchLoader, self).__init__(self.dataset,
                                               batch_size=opt.hyper_opt.batch_size,

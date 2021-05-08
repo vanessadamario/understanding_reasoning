@@ -8,10 +8,12 @@
 
 import math
 
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import kaiming_normal_, kaiming_uniform_
+from vr.models.task_division import dict_separated_tasks, invert_task_div
 
 
 class SequentialSaveActivations(nn.Sequential):
@@ -83,7 +85,7 @@ class ResidualBlock(nn.Module):
         return out
 
 
-class SimpleConcatBlock(nn.Module):
+class SimpleConcatBlock(nn.Module):  # this is what we want to use
     def __init__(self, dim, kernel_size, shared_block=None):
         super().__init__()
         self.proj = nn.Conv2d(3 * dim, dim, kernel_size=1, padding=0)
@@ -133,6 +135,27 @@ def build_stem(feature_dim,
                stride=[1],
                padding=None,
                subsample_layers=None,
+               acceptEvenKernel=False,
+               separated_stem=False):
+    if separated_stem:
+        return BuildSpecializedStems(feature_dim, stem_dim, module_dim, num_layers,
+                                     with_batchnorm, kernel_size, stride, padding,
+                                     subsample_layers, acceptEvenKernel)
+    else:  # original architecture
+        return build_stem_(feature_dim, stem_dim, module_dim, num_layers,
+                           with_batchnorm, kernel_size, stride, padding,
+                           subsample_layers, acceptEvenKernel)
+
+
+def build_stem_(feature_dim,
+               stem_dim,
+               module_dim,
+               num_layers=2,
+               with_batchnorm=True,
+               kernel_size=[3],
+               stride=[1],
+               padding=None,
+               subsample_layers=None,
                acceptEvenKernel=False):
     layers = []
     prev_dim = feature_dim
@@ -164,6 +187,86 @@ def build_stem(feature_dim,
             layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
         prev_dim = curr_out
     return SequentialSaveActivations(*layers)
+
+
+class BuildSpecializedStems(nn.Module):
+    def __init__(self,
+                 feature_dim,
+                 stem_dim,
+                 module_dim,
+                 num_layers=2,
+                 with_batchnorm=True,
+                 kernel_size=[3],
+                 stride=[1],
+                 padding=None,
+                 subsample_layers=None,
+                 acceptEvenKernel=False):
+        super(BuildSpecializedStems, self).__init__()
+        self.module_dim = module_dim
+        self.stem_dim = stem_dim
+        self.num_layers = num_layers
+
+        list_subtasks_layers = []
+
+        for subtask_ in sorted(dict_separated_tasks.keys()):
+            if len(kernel_size) == 1:
+                kernel_size = num_layers * kernel_size
+            if len(stride) == 1:
+                stride = num_layers * stride
+            if padding is None:
+                padding = num_layers * [None]
+            if len(padding) == 1:
+                padding = num_layers * padding
+            if subsample_layers is None:
+                subsample_layers = []
+
+            layers = []  # for each type of question we must repeat this
+            prev_dim = feature_dim
+
+            layer_id = []
+            for i, cur_kernel_size, cur_stride, cur_padding in zip(range(num_layers), kernel_size, stride, padding):
+                # print('current layer: %i' %i)
+                curr_out = module_dim if (i == (num_layers - 1)) else stem_dim
+
+                if cur_padding is None:  # Calculate default padding when None provided
+                    if cur_kernel_size % 2 == 0 and not acceptEvenKernel:
+                        raise NotImplementedError
+                    cur_padding = cur_kernel_size // 2
+                # print(prev_dim, curr_out, cur_kernel_size, cur_stride, cur_padding)
+                layers.append(nn.Conv2d(prev_dim, curr_out,
+                                        kernel_size=cur_kernel_size, stride=cur_stride, padding=cur_padding,
+                                        bias=not with_batchnorm))
+                layer_id.append(i)
+
+                if with_batchnorm:
+                    layers.append(nn.BatchNorm2d(curr_out))
+                    layer_id.append(i)
+
+                layers.append(nn.ReLU(inplace=True))
+                layer_id.append(i)
+
+                if i in subsample_layers:
+                    layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
+                    layer_id.append(i)
+
+                prev_dim = curr_out
+            list_subtasks_layers.append(nn.Sequential(*layers))  # we were appending nn.moduleList before
+            self.layer_id = layer_id  # all identical across the dict
+
+        self.layers = nn.ModuleList(list_subtasks_layers)
+
+    def forward(self, img):
+        #  We return the modulated stem
+        # :param img: input image
+        stems_per_task = []
+        for id_task in range(len(self.layers)):
+            output = img.clone().detach()
+            for i, (layer_, l_id_) in enumerate(zip(self.layers[id_task], self.layer_id)):
+                output = layer_(output)
+            stems_per_task.append(output)
+        # print('dimensions')
+        # print(torch.stack(stems_per_task, dim=1).shape)
+        return torch.stack(stems_per_task, dim=1)  # (N, 8, C, H, W)
 
 
 class HybridPool(nn.Module):

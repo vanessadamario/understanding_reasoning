@@ -6,6 +6,7 @@ import json
 import pickle
 from os.path import join
 from functools import reduce
+import h5py
 from runs.experiments import generate_dataset_json
 from runs.mnist_attribute_generation import transform
 
@@ -162,6 +163,7 @@ def generate_data_matrix(n_train,
                          tuples_test,
                          path_output_folder,
                          path_original_file,
+                         h5_file,
                          flag_program=False,
                          test_seen=False):
     """
@@ -173,6 +175,7 @@ def generate_data_matrix(n_train,
     :param tuples_test: tuples containing positive and negative examples at test
     :param path_output_folder: str, where to save the files
     :param path_original_file: str, where the original mnist files are
+    :param h5_file: bool, do we want to use h5 file or not
     :param flag_program: if we want to save the programs or not
     :returns: None
     Format of the output file
@@ -180,6 +183,7 @@ def generate_data_matrix(n_train,
         three files for each
     It saves in files the two.
     """
+
     split_name = ["train", "valid", "test"]
     n_list = [n_train, 2000, 2000]
     tuples_list = [tuples_train, tuples_test, tuples_test]
@@ -188,6 +192,11 @@ def generate_data_matrix(n_train,
         split_name = split_name[1:]
         n_list = n_list[1:]
         tuples_list = tuples_list[1:]
+
+    # if h5_file:
+    #     x_split_files = [h5py.File(join(path_output_folder, "feats_%s.hdf5" % s_), 'w')
+    #                      for s_ in split_name]
+    #    y_split_files = ["y_%s.npy" % s_ for s_ in split_name]
 
     x_split_files = ["x_%s.npy" % s_ for s_ in split_name]
     y_split_files = ["y_%s.npy" % s_ for s_ in split_name]
@@ -205,8 +214,18 @@ def generate_data_matrix(n_train,
     ch_ = 3  # color channel
 
     for id_, (x_, y_, n_, tuples_, split_) in enumerate(zip(x_original, y_original, n_list, tuples_list, split_name)):
-        print("\n%s" % split_)
-        x_new = np.zeros((n_ * n_questions, ch_, dim_x, dim_y))
+
+        if h5_file:
+            f = h5py.File(join(path_output_folder, "feats_%s.hdf5" % split_), 'w')
+            dset = f.create_dataset('features',
+                                    maxshape=(n_*n_questions, ch_, dim_x, dim_y),
+                                    shape=(n_//2, ch_, dim_x, dim_y),
+                                    dtype=np.float64,
+                                    chunks=True)
+
+        else:
+            x_new = np.zeros((n_ * n_questions, ch_, dim_x, dim_y))  # shape n_train, n_valid, etc
+
         q_new = np.zeros(n_ * n_questions, dtype=int)
         a_new = np.zeros(n_ * n_questions, dtype=int)
         pos_tuples, neg_tuples = tuples_
@@ -217,28 +236,38 @@ def generate_data_matrix(n_train,
         list_attributes_examples = []
         # question
         for id_tuple, (p_tuples_, q_) in enumerate(zip(pos_tuples, dict_question_to_idx.values())):
+
+            if h5_file:
+                reset_count = count_
+                x_new = np.zeros((n_//2, ch_, dim_x, dim_y))  # too large
+                print('x new shape')
+                print(x_new.shape)
+            else:
+                reset_count = 0
+
             if split_ == "test":
                 np.random.seed(12345)
             n_cat_per_tuple = (n_ // 2) // len(p_tuples_)
-            print("\ncat per tuple", n_cat_per_tuple)
+            # print("\ncat per tuple", n_cat_per_tuple)
             for p_tuple in p_tuples_:
                 images_to_use = np.random.choice(digit_indexes[int(p_tuple[0])], size=n_cat_per_tuple)
                 # indexes for the digit in the tuple
                 for id_count, id_image in enumerate(images_to_use):
                     if isinstance(p_tuple[4], str):
                         p_tuple[4] = False if p_tuple[4] == 'False' else True
-
-                    x_new[count_] = transform(x_[id_image] / 255,
-                                              reshape=p_tuple[3],
-                                              color=p_tuple[1],
-                                              bright=p_tuple[2],
-                                              contour=p_tuple[4])
+                    # print('tuple')
+                    # print(p_tuple)
+                    x_new[count_-reset_count] = transform(x_[id_image] / 255,
+                                                          reshape=p_tuple[3],
+                                                          color=p_tuple[1],
+                                                          bright=p_tuple[2],
+                                                          contour=p_tuple[4])
                     q_new[count_] = q_
                     a_new[count_] = 1
                     count_ += 1
                     list_attributes_examples.append(p_tuple)
 
-            print("mod: ", ((n_ // 2) % len(p_tuples_)))
+            # print("mod: ", ((n_ // 2) % len(p_tuples_)))
             if ((n_ // 2) % len(p_tuples_)) != 0:
                 tmp_list = np.random.choice(np.arange(len(p_tuples_)),
                                             size=(n_ // 2) % len(p_tuples_))
@@ -247,7 +276,7 @@ def generate_data_matrix(n_train,
                     id_image = np.random.choice(digit_indexes[int(tmp_tuple[0])])
                     if isinstance(tmp_tuple[4], str):
                         tmp_tuple[4] = False if tmp_tuple[4] == 'False' else True
-                    x_new[count_] = transform(x_[id_image] / 255,
+                    x_new[count_-reset_count] = transform(x_[id_image] / 255,
                                               reshape=tmp_tuple[3],
                                               color=tmp_tuple[1],
                                               bright=tmp_tuple[2],
@@ -257,9 +286,21 @@ def generate_data_matrix(n_train,
                     a_new[count_] = 1
                     count_ += 1
                 # images_to_use = np.random.choice(digit_indexes[int(p_tuple[0])], size=n_cat_per_tuple)
+            print('count', count_)
+            if h5_file:
+                if id_tuple > 0:
+                    dset.resize(count_, axis=0)
+                dset[id_tuple*(n_//2):] = x_new
+                print('we are saving')
+
         print(count_)
 
         for id_tuple, (n_tuples_, q_) in enumerate(zip(neg_tuples, dict_question_to_idx.values())):
+            if h5_file:
+                reset_count = count_
+                x_new = np.zeros((n_//2, ch_, dim_x, dim_y))
+                # else reset is still zero
+
             n_cat_per_tuple = (n_ // 2) // len(n_tuples_)
             print("cat per tuple", n_cat_per_tuple)
             for n_tuple in n_tuples_:
@@ -268,7 +309,7 @@ def generate_data_matrix(n_train,
                 for id_count, id_image in enumerate(images_to_use):
                     if isinstance(n_tuple[4], str):
                         n_tuple[4] = False if n_tuple[4] == 'False' else True
-                    x_new[count_] = transform(x_[id_image] / 255,
+                    x_new[count_-reset_count] = transform(x_[id_image] / 255,
                                               reshape=n_tuple[3],
                                               color=n_tuple[1],
                                               bright=n_tuple[2],
@@ -287,7 +328,7 @@ def generate_data_matrix(n_train,
                     id_image = np.random.choice(digit_indexes[int(tmp_tuple[0])])
                     if isinstance(tmp_tuple[4], str):
                         tmp_tuple[4] = False if tmp_tuple[4] == 'False' else True
-                    x_new[count_] = transform(x_[id_image] / 255,
+                    x_new[count_-reset_count] = transform(x_[id_image] / 255,
                                               reshape=tmp_tuple[3],
                                               color=tmp_tuple[1],
                                               bright=tmp_tuple[2],
@@ -296,21 +337,26 @@ def generate_data_matrix(n_train,
                     q_new[count_] = q_
                     a_new[count_] = 0
                     count_ += 1
+
+            if h5_file:
+                dset.resize(count_, axis=0)
+                dset[(n_//2)*n_questions + id_tuple*(n_//2):] = x_new
         print(count_)
 
         # print("\nCOUNT", count_)
         # print("original n", n_ * n_questions)
 
         rnd_indexes = np.arange(count_)
-        np.random.seed(123)
-        np.random.shuffle(rnd_indexes)
+        # np.random.seed(123)  # pytorch already load the data in random order
+        # np.random.shuffle(rnd_indexes)
 
         if test_seen:
             split_ = 'in_distr_%s' % split_
 
         print("SAVE: ", path_output_folder)
         print(x_new.shape)
-        np.save(join(path_output_folder, "feats_%s" % split_), x_new[rnd_indexes])
+        if not h5_file:
+            np.save(join(path_output_folder, "feats_%s" % split_), x_new[rnd_indexes])
         np.save(join(path_output_folder, "questions_%s" % split_), q_new[rnd_indexes])
         np.save(join(path_output_folder, "answers_%s" % split_), a_new[rnd_indexes])
         np.save(join(path_output_folder, 'attributes_%s' % split_), np.array(list_attributes_examples)[rnd_indexes])
@@ -635,9 +681,12 @@ def generate_data_file(output_data_folder,
                        n_tuples_test_p,
                        n_tuples_test_n,
                        splits_folder,
+                       h5_file,
                        random_combinations=False,
                        test_seen=False,
-                       dataset_name=None):
+                       dataset_name=None
+                       ):
+
 
     # TODO: RANDOM COMBINATION
     # ALWAYS SET TO FALSE
@@ -721,10 +770,12 @@ def generate_data_file(output_data_folder,
                          vocab["question_token_to_idx"],
                          tuples_train,
                          tuples_test,
+                         h5_file=h5_file,
                          path_output_folder=dataset_path_,
                          path_original_file=splits_folder,
                          flag_program=False,
-                         test_seen=test_seen)
+                         test_seen=test_seen
+                         )
     return
 
 

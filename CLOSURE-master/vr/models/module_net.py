@@ -22,6 +22,7 @@ from torch.nn.init import kaiming_normal, kaiming_uniform, xavier_uniform, xavie
 from torch.autograd import Function
 from vr.models.filmed_net import FiLM, FiLMedResBlock, ConcatFiLMedResBlock, coord_map, SharedFiLMedModule, FiLMModule
 from vr.models.maced_net import MACControl
+from vr.models.task_division import dict_separated_tasks, invert_task_div
 
 
 class ModuleNet(nn.Module):
@@ -57,7 +58,8 @@ class ModuleNet(nn.Module):
                  discriminator_fc_layers=None,
                  discriminator_dropout=None,
                  verbose=True,
-                 type_anonymizer=False):
+                 type_anonymizer=False,
+                 separated_stem=False):
         super(ModuleNet, self).__init__()
 
         if discriminator_proj_dim is None:
@@ -75,16 +77,26 @@ class ModuleNet(nn.Module):
         self.mod_id_loss = mod_id_loss
         self.kl_loss = kl_loss
         self.learn_control = learn_control
+        self.separated_stem = separated_stem
+
+        if separated_stem:
+            self.dict_subtasks = dict_separated_tasks
+            map_program_idx_to_subtask = torch.Tensor(invert_task_div(dict_separated_tasks))
+            self.map_program_idx_to_subtask = map_program_idx_to_subtask.type(torch.int64)
+            print(self.map_program_idx_to_subtask)
 
         self.stem = build_stem(feature_dim[0], stem_dim, module_dim,
                                num_layers=stem_num_layers,
                                subsample_layers=stem_subsample_layers,
                                kernel_size=stem_kernel_size,
                                padding=stem_padding,
-                               with_batchnorm=stem_batchnorm)
+                               with_batchnorm=stem_batchnorm,
+                               separated_stem=separated_stem
+                               )
+        print(self.stem)
         tmp = self.stem(Variable(torch.zeros([1, feature_dim[0], feature_dim[1], feature_dim[2]])))
-        module_H = tmp.size(2)
-        module_W = tmp.size(3)
+        module_H = tmp.size(-2)
+        module_W = tmp.size(-1)
 
         self.coords = coord_map((module_H, module_W))
 
@@ -199,6 +211,10 @@ class ModuleNet(nn.Module):
             self.controller = MACControl(30, rnn_dim, module_dim)
 
     def _forward_modules_ints_helper(self, feats, program, i, j, module_outputs):
+        # print('program')
+        # print('j: ', j)
+        # print(program[i])
+        # print(program[i, j])
         used_fn_j = True
         orig_j = j
         if j < program.size(1):
@@ -222,22 +238,32 @@ class ModuleNet(nn.Module):
             num_inputs = 1
 
         module = self.function_modules[fn_str]
-
+        # print('program ij', program[i, j])
+        # print(self.map_program_idx_to_subtask[program[i, j]])
         if fn_str == 'scene':
-            module_inputs = [feats[i:i+1]]
+            if self.separated_stem:
+                module_inputs = [feats[i:i+1, -1]]
+            else:
+                module_inputs = [feats[i:i+1]]
         else:
             module_inputs = []
             while len(module_inputs) < num_inputs:
                 cur_input, j = self._forward_modules_ints_helper(feats, program, i, j, module_outputs)
                 module_inputs.append(cur_input)
             if self.use_film:
-                module_inputs = [feats[i:i+1]] + module_inputs
+                if self.separated_stem:
+                    module_inputs = [feats[i:i+1, self.map_program_idx_to_subtask[program[i, j]]]] + module_inputs
+                else:
+                    module_inputs = [feats[i:i + 1]] + module_inputs
 
         if self.use_simple_block:
             # simple block must have 3 inputs
             if len(module_inputs) < 2:
                 module_inputs.append(torch.zeros_like(module_inputs[0]))
-            module_inputs = [feats[i:i+1]] + module_inputs
+            if self.separated_stem:
+                module_inputs = [feats[i:i+1, self.map_program_idx_to_subtask[program[i, j]]]] + module_inputs
+            else:
+                module_inputs = [feats[i:i+1]] + module_inputs
 
         module_output = module(*module_inputs)
         if self.kl_loss:
@@ -280,17 +306,19 @@ class ModuleNet(nn.Module):
         max_program_len = program.shape[1]
         stacks = [[] for j in range(batch_size)]
         program_wellformed = torch.ones(batch_size, dtype=torch.bool)
-
-        zero_inp = torch.zeros_like(feats)[:, :, 0, 0]
+        if self.separated_stem:
+            zero_inp = torch.zeros_like(feats[:, 0])[:, :, 0, 0]  # only for sep stem
+        else:
+            zero_inp = torch.zeros_like(feats)[:, :, 0, 0]  # must be (N, C)
+        # print('shape zero input', zero_inp.shape)
         memory = zero_inp[None, :]
-
         if question is not None:
             controls, control_scores = self.controller(question)
             assert max_program_len <= controls.shape[1]
             lengths = (program > 0).sum(1)
             new_controls = []
             for j, leng in zip(range(batch_size), lengths):
-                 #shift controls so that the last control goes to the first module
+                 # shift controls so that the last control goes to the first module
                  new_controls.append(
                     torch.cat([controls[j, -leng:],
                                torch.zeros((max_program_len - leng, controls.shape[2]),
@@ -308,7 +336,6 @@ class ModuleNet(nn.Module):
                     mask[j] = 0
             num_inputs = [self.function_modules_num_inputs[fn_name] if mask[j] else 0
                           for j, fn_name in enumerate(fn_names)]
-
             # prepare inputs
             input_indices = [[max_program_len, max_program_len] for j in range(batch_size)]
             for j in range(batch_size):
@@ -324,7 +351,20 @@ class ModuleNet(nn.Module):
 
             # run the batched compute
             control_i = controls[:, i] if question else program[:, i]
-            cur = self.shared_block(feats, control_i, inputs[0], inputs[1])
+
+            if self.separated_stem:
+                # (program[:,i])
+                # print(self.map_program_idx_to_subtask[program[:, i]])
+                # print('into shared block')
+                # print(feats[range(batch_size), self.map_program_idx_to_subtask[program[:, i]]].shape)
+                # print(control_i)
+                # print(inputs[0].shape)
+                # print(inputs[1].shape)
+
+                cur = self.shared_block(feats[range(batch_size), self.map_program_idx_to_subtask[program[:, i]]],
+                                        control_i, inputs[0], inputs[1])
+            else:
+                cur = self.shared_block(feats, control_i, inputs[0], inputs[1])
 
             memory = torch.cat([cur[None, :], memory])
 
@@ -345,17 +385,18 @@ class ModuleNet(nn.Module):
     def forward(self, x, program, save_activations=False, question=None):
         N = x.size(0)
         assert N == len(program)
-
         feats = self.stem(x)
+        # if separated_stem feats has five dimensions, else four
+        # here the features should be computed based on program
 
         program_wellformed = None
-        if self.use_film == 1:
+        if self.use_film == 1:  # vector nmn
             final_module_outputs, program_wellformed = self._forward_batch(
                 feats, program, question=question if self.learn_control else None,
                 save_activations=save_activations)
-            #check = self._forward_modules_ints(feats, program)
-            #print(abs(final_module_outputs - check[0]).sum())
-        else:
+            # check = self._forward_modules_ints(feats, program)
+            # print(abs(final_module_outputs - check[0]).sum())
+        else:  # tensor nmn
             final_module_outputs, _ = self._forward_modules_ints(feats, program)
 
         scores = self.classifier(final_module_outputs)

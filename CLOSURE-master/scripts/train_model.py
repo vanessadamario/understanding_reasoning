@@ -38,9 +38,15 @@ from vr.models import *
 from vr.ns_vqa.parser import Seq2seqParser
 from vr.ns_vqa.clevr_executor import ClevrExecutor
 
+# os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 parser = argparse.ArgumentParser()
 logger = logging.getLogger(__name__)
+# os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+print('\n\n\nDEVICE')
+print(device)
+print('\n\n\n')
+
 
 def is_multigpu():
     nproc_str = os.environ.get('NPROC', '1')
@@ -48,20 +54,24 @@ def is_multigpu():
         return False
     return int(nproc_str) > 1
 
+
 def atomic_torch_save(object_, path):
     tmp_path = path + '.tmp'
     torch.save(object_, tmp_path)
     shutil.move(tmp_path, path)
+
 
 def parse_int_list(input_):
     if not input_:
         return []
     return list(map(int, input_.split(',')))
 
+
 def parse_float_list(input_):
     if not input_:
         return []
     return list(map(float, input_.split(',')))
+
 
 def one_or_list(parser):
     def parse_one_or_list(input_):
@@ -72,11 +82,13 @@ def one_or_list(parser):
             return output
     return parse_one_or_list
 
+
 def get_parameter_norm(model):
     total_param_norm = 0
     for p in model.parameters():
         total_param_norm += (p ** 2).sum()
     return total_param_norm ** (1. / 2)
+
 
 def get_parameter_grad_norm(model):
     total_param_norm = 0
@@ -85,7 +97,12 @@ def get_parameter_grad_norm(model):
             total_param_norm += (p.grad ** 2).sum()
     return total_param_norm ** (1. / 2)
 
+
 parser.add_argument("--seed", default=None)
+
+# specialized_stem
+parser.add_argument('--separated_stem', default=False)
+# implemented on tensor NMN only
 
 # for DDP launcher
 parser.add_argument("--rank", type=int, default=0)
@@ -121,7 +138,7 @@ parser.add_argument('--model_type', default='PG',
            'LSTM', 'CNN+LSTM', 'CNN+LSTM+SA',
            'Hetero', 'MAC',
            'SimpleNMN', 'RelNet', 'SHNMN',
-           'ConvLSTM'])
+           'ConvLSTM', 'StemmedEE'])
 parser.add_argument('--train_program_generator', default=1, type=int)
 parser.add_argument('--train_execution_engine', default=1, type=int)
 parser.add_argument('--baseline_train_only_rnn', default=0, type=int)
@@ -270,7 +287,7 @@ parser.add_argument('--temperature_increase', default=None, type=float)
 
 # Output options
 parser.add_argument('--checkpoint_path', default='{slurmid}.pt')
-parser.add_argument('--allow_resume', action='store_true')
+parser.add_argument('--allow_resume', type=bool, default=True)
 parser.add_argument('--load_ee_parameters', default=None, type=str)
 parser.add_argument('--randomize_checkpoint_path', type=int, default=0)
 parser.add_argument('--avoid_checkpoint_override', default=0, type=int)
@@ -316,7 +333,7 @@ def main(args):
 
     logger.info('Will save checkpoints to %s' % args.checkpoint_path)
 
-    """args.vocab_json = os.path.join(args.data_dir, args.vocab_json)
+    args.vocab_json = os.path.join(args.data_dir, args.vocab_json)
 
     if not args.checkpoint_path:
         raise NotImplementedError('no default checkpoint path')
@@ -329,13 +346,12 @@ def main(args):
     if args.family_split_file is not None:
         with open(args.family_split_file, 'r') as f:
             question_families = json.load(f)
-    """
+
     print(args.symbolic_ee)
     print(args.model_type)
-
+    print('allow_resume', args.allow_resume)
     print("\n")
     print(args)
-    return
 
     scenes_needed = args.symbolic_ee
     features_needed = args.model_type != 'PG' and not args.symbolic_ee
@@ -405,7 +421,8 @@ def train_loop(args, train_loader, val_loaders):
     models_that_need_pg = ['MAC', 'RTfilm', 'Tfilm', 'FiLM',
                            'PG', 'PG+EE', 'Control-EE', 'RelNet', 'ConvLSTM']
     models_that_need_ee = ['MAC', 'RTfilm', 'Tfilm', 'FiLM', 'EE', 'PG+EE',
-                           'Control-EE', 'Hetero', 'SimpleNMN', 'SHNMN', 'RelNet', 'ConvLSTM']
+                           'Control-EE', 'Hetero', 'SimpleNMN', 'SHNMN', 'RelNet', 'ConvLSTM',
+                           'StemmedEE']
 
     # Set up model
     if args.allow_resume and os.path.exists(args.checkpoint_path):
@@ -420,12 +437,14 @@ def train_loop(args, train_loader, val_loaders):
             if args.symbolic_ee:
                 execution_engine, ee_kwargs = get_execution_engine(args)
             else:
+                print('we are loading the exec engine')
                 execution_engine, ee_kwargs  = vr.utils.load_execution_engine(args.checkpoint_path)
                 execution_engine.to(device)
                 if is_multigpu():
                     execution_engine = DistributedDataParallel(execution_engine, device_ids=[args.local_rank])
         with open(args.checkpoint_path + '.json', 'r') as f:
             checkpoint = json.load(f)
+            print(checkpoint['train_losses_ts'])
         for key in list(stats.keys()):
             if key in checkpoint:
                 stats[key] = checkpoint[key]
@@ -473,7 +492,7 @@ def train_loop(args, train_loader, val_loaders):
             parameters = list(execution_engine.controlUnit.parameters())
             for inpUnit in execution_engine.inputUnits:
                 parameters.extend(list(inpUnit.parameters()))
-        else:
+        else:  # it should enter here
             parameters = execution_engine.parameters()
         ee_optimizer = optim_method(parameters,
                                     lr=args.learning_rate,
@@ -501,7 +520,6 @@ def train_loop(args, train_loader, val_loaders):
     val_pass_total_time = 0.0
     valB_pass_total_time = 0.0
     running_loss = 0.0
-
 
     # cache = [lru.LRU(10) for i in range(len(train_loader.dataset))]  # FIXME: missing lib
 
@@ -531,6 +549,7 @@ def train_loop(args, train_loader, val_loaders):
             data_moving_start_time = time.time()
             (questions, indices, feats, scenes, answers, programs) = batch
             if isinstance(questions, list):
+                # this code checks what is the longest question
                 questions = questions[0]
                 questions = questions[:, :(questions.sum(0) > 0).sum()]
             questions_var = Variable(questions.to(device))
@@ -547,14 +566,16 @@ def train_loop(args, train_loader, val_loaders):
                 loss = program_generator.log_likelihood(questions_var, programs_var).mean()
                 loss.backward()
                 pg_optimizer.step()
-            elif args.model_type in ['EE', 'Hetero']:
+            elif args.model_type in ['EE', 'Hetero', 'StemmedEE']:
                 # Train execution engine with ground-truth programs
+                # print('Im here')
+                # print(args.model_type)
                 ee_optimizer.zero_grad()
-
+                # print(execution_engine.__dict__.keys())
                 scores, _, _ = execution_engine(feats_var, programs_var, question=questions_var)
+                # print(scores)
                 full_loss = loss = loss_fn(scores, answers_var)
                 acc = (scores.argmax(1) == answers_var).float().mean()
-
                 full_loss.backward()
                 ee_optimizer.step()
             elif args.model_type in ['Control-EE']:
@@ -606,7 +627,6 @@ def train_loop(args, train_loader, val_loaders):
                 correct = (programs_pred == programs_var).int().sum(1) == min_length
                 prog_acc = correct.float().mean()
 
-
                 if args.train_execution_engine == 1:
                     ee_optimizer.zero_grad()
                     loss.backward()
@@ -628,8 +648,14 @@ def train_loop(args, train_loader, val_loaders):
                     set_mode('eval', [execution_engine])
 
                 forward_start_time = time.time()
-                programs_pred = program_generator(questions_var)
-                scores = execution_engine(feats_var, programs_pred)
+                if args.separated_stem:
+                    programs_pred = program_generator(questions_var)
+                    scores = execution_engine(feats_var, programs_pred, questions_var)
+                    # print('we need to work on this')
+                    return
+                else:
+                    programs_pred = program_generator(questions_var)
+                    scores = execution_engine(feats_var, programs_pred)
                 loss = loss_fn(scores, answers_var)
                 full_loss = loss.clone()
                 fwd_pass_time = time.time() - forward_start_time
@@ -935,7 +961,7 @@ def get_execution_engine(args):
         ee, kwargs = vr.utils.load_execution_engine(args.execution_engine_start_from)
     else:
         kwargs = {
-            'vocab': vocab,
+          'vocab': vocab,
           'feature_dim': args.feature_dim,
           'stem_batchnorm': args.module_stem_batchnorm == 1,
           'stem_num_layers': args.module_stem_num_layers,
@@ -973,6 +999,7 @@ def get_execution_engine(args):
             kwargs['print_verbose_every'] = args.print_verbose_every
             kwargs['condition_method'] = args.condition_method
             kwargs['condition_pattern'] = args.condition_pattern
+            kwargs['separated_stem'] = args.separated_stem
             ee = FiLMedNet(**kwargs)
         elif args.model_type == 'Tfilm':
             kwargs['num_modules'] = args.max_program_module_arity * args.max_program_tree_depth + 1
@@ -1114,7 +1141,25 @@ def get_execution_engine(args):
         elif args.model_type == 'ConvLSTM':
             kwargs['rnn_hidden_dim'] = args.rnn_hidden_dim
             ee = ConvLSTM(**kwargs)
+        elif args.model_type == 'StemmedEE':
+            kwargs['use_film'] = args.nmn_use_film
+            kwargs['use_simple_block'] = args.nmn_use_simple_block
+            kwargs['mod_id_loss'] = False
+            kwargs['kl_loss'] = False
+            kwargs['module_pool'] = args.nmn_module_pool
+            kwargs['module_num_layers'] = args.module_num_layers
+            kwargs['module_use_gammas'] = args.nmn_use_gammas
+            kwargs['learn_control'] = args.nmn_learn_control
+            kwargs['rnn_dim'] = args.rnn_hidden_dim
+            kwargs['type_anonymizer'] = False
+            kwargs['discriminator_proj_dim'] = args.discriminator_proj_dim
+            kwargs['discriminator_downsample'] = args.discriminator_downsample
+            kwargs['discriminator_fc_layers'] = args.discriminator_fc_dims
+            kwargs['discriminator_dropout'] = args.discriminator_dropout
+            ee = StemmedModuleNet(**kwargs)
         else:
+            print('WE ARE IN TENSOR NMN')
+            kwargs['separated_stem'] = args.separated_stem
             kwargs['use_film'] = args.nmn_use_film
             kwargs['use_simple_block'] = args.nmn_use_simple_block
             kwargs['mod_id_loss'] = False
@@ -1237,7 +1282,7 @@ def check_accuracy(args, program_generator, execution_engine, baseline_model, lo
                         num_correct += 1
                     num_samples += 1
                 return
-            elif args.model_type in ['EE', 'Hetero']:
+            elif args.model_type in ['EE', 'Hetero', 'StemmedEE']:
                 scores, _2, _3 = execution_engine(feats_var, programs_var)
             elif args.model_type == 'PG+EE':
                 programs_pred, _ = program_generator.forward(questions_var, argmax=True)

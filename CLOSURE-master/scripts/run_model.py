@@ -21,7 +21,7 @@ import torch.nn.functional as F
 import torchvision
 import numpy as np
 import h5py
-from scipy.misc import imread, imresize, imsave
+# from scipy.misc import imread, imresize, imsave
 
 import vr.utils as utils
 import vr.programs
@@ -82,18 +82,21 @@ parser.add_argument('--dump_module_info', action='store_true')
 parser.add_argument('--output_preds', default=None)
 parser.add_argument('--output_viz_dir', default='img/')
 parser.add_argument('--output_program_stats_dir', default=None)
+parser.add_argument('--percent_of_data', default=0.1)
 
 grads = {}
 programs = {}  # NOTE: Useful for zero-shot program manipulation when in debug mode
+
 
 def main(args):
     if not args.program_generator:
         args.program_generator = args.execution_engine
     input_question_h5 = os.path.join(args.data_dir, '{}_questions.h5'.format(args.part))
+    if args.part.endswith('_val'):  # for testing on closure
+        args.part = 'val'
     input_features_h5 = os.path.join(args.data_dir, '{}_features.h5'.format(args.part))
     input_scenes = os.path.join(args.data_dir, '{}_scenes.json'.format(args.part))
     vocab = load_vocab(args)
-
     pg, _ = utils.load_program_generator(args.program_generator)
     if pg:
         pg.save_activations = True
@@ -111,12 +114,17 @@ def main(args):
     if args.use_gpu == 1:
         dtype = torch.cuda.FloatTensor
 
+    # ex = h5py.File(input_question_h5, 'r')
+    # percent_of_data = np.unique(ex['image_idxs'][:]).size / 15000
+    percent_of_data = 1.
+
     loader_kwargs = {
         'question_h5': input_question_h5,
         'feature_h5': input_features_h5,
         'scene_path': input_scenes if isinstance(ee, ClevrExecutor) else None,
         'vocab': vocab,
         'batch_size': args.batch_size,
+        'percent_of_data': percent_of_data
     }
     if args.num_samples is not None and args.num_samples > 0:
         loader_kwargs['max_samples'] = args.num_samples
@@ -124,17 +132,20 @@ def main(args):
         loader_kwargs['question_families'] = args.q_family
     with ClevrDataLoader(**loader_kwargs) as loader:
         with torch.no_grad():
+            # for batch in loader:
+            #     questions, images, feats, scenes, answers, programs = batch
+            #     print(programs)
+            #     return
             run_batch(args, pg, ee, loader, dtype)
 
 
-def run_batch(args, pg, ee, loader, dtype):
+def run_batch(args, pg, ee, loader, dtype, bool_extract=False):
     if pg:
         pg.type(dtype)
         pg.eval()
     if ee and not isinstance(ee, ClevrExecutor):
         ee.type(dtype)
         ee.eval()
-
     all_scores = []
     all_probs = []
     all_preds = []
@@ -153,11 +164,23 @@ def run_batch(args, pg, ee, loader, dtype):
 
     start = time.time()
     for batch in tqdm(loader):
+        bool_extract = True  # True for CLEVR
         assert(not pg or not pg.training)
+
         assert(isinstance(ee, ClevrExecutor) or not ee.training)
+        # for batch in
 
         questions, images, feats, scenes, answers, programs = batch
-        questions_var = questions[0].type(dtype).long()
+        # print(questions)
+        print(questions)
+        print('questions shape', len(questions))
+        # print(feats.shape)
+        # if bool_extract:
+        #     questions_var = questions[0].type(dtype).long()  # FIXME: IS THIS A TYPO!?
+        # else:
+        questions_var = questions.type(dtype).long()
+
+        # print(programs)
         questions_var = questions_var[:, :(questions_var.sum(0) > 0).sum()]
         feats_var = feats.type(dtype)
         programs_var = programs.to(feats_var.device)

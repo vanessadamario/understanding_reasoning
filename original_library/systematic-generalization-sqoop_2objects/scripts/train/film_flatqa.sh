@@ -1,18 +1,21 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH -c 1
-#SBATCH --job-name=FiLM_lhs1
+#SBATCH --array=0-4
+#SBATCH --job-name=FiLMlhs1
 #SBATCH --mem=10GB
-#SBATCH -t 12:30:00
-#SBATCH --gres=gpu:tesla-k80:1
+#SBATCH -t 100:00:00
+#SBATCH --gres=gpu:1
+#SBATCH --constraint=8GB
 #SBATCH --partition=normal
 
 module add openmind/singularity/3.4.1
 
 singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tensorflow2.simg \
-  python /om/user/vanessad/om/user/vanessad/original_library/systematic-generalization-sqoop/scripts/train_model.py \
+  python3 /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/scripts/train_model.py \
   --feature_dim=3,64,64 \
-  --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-variety_1-repeats_30000 \
+  --checkpoint_path /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/results/FiLM/lhs1/${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}.pt \
+  --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-no_crowding-variety_1-repeats_30000 \
   --model_type FiLM \
   --num_iterations 200000 \
   --checkpoint_every 1000 \

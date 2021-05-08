@@ -11,6 +11,7 @@ import torchvision.models
 
 from vr.models.layers import init_modules, GlobalAveragePool, Flatten
 from vr.models.layers import build_classifier, build_stem
+from vr.models.task_division import dict_separated_tasks, invert_task_div
 import vr.programs
 
 
@@ -74,6 +75,7 @@ class FiLMedNet(nn.Module):
                  debug_every=float('inf'),
                  print_verbose_every=float('inf'),
                  verbose=True,
+                 separated_stem=False
                  ):
         super(FiLMedNet, self).__init__()
 
@@ -94,6 +96,7 @@ class FiLMedNet(nn.Module):
         self.use_coords_freq = use_coords
         self.debug_every = debug_every
         self.print_verbose_every = print_verbose_every
+        self.separated_stem = separated_stem
 
         # Initialize helper variables
         self.stem_use_coords = (stem_stride == 1) and (self.use_coords_freq > 0)
@@ -112,16 +115,30 @@ class FiLMedNet(nn.Module):
         if self.debug_every <= -1:
             self.print_verbose_every = 1
 
+        if self.separated_stem:
+            self.dict_subtasks = dict_separated_tasks
+            map_program_idx_to_subtask = torch.Tensor(invert_task_div(dict_separated_tasks))
+            self.map_program_idx_to_subtask = map_program_idx_to_subtask.type(torch.int64)
+            print(self.map_program_idx_to_subtask)
+    
         # Initialize stem
         stem_feature_dim = feature_dim[0] + self.stem_use_coords * self.num_extra_channels
+
         self.stem = build_stem(
             stem_feature_dim, stem_dim, module_dim,
-          num_layers=stem_num_layers, with_batchnorm=stem_batchnorm,
-          kernel_size=stem_kernel_size, stride=stem_stride, padding=stem_padding,
-          subsample_layers=stem_subsample_layers)
+            num_layers=stem_num_layers, with_batchnorm=stem_batchnorm,
+            kernel_size=stem_kernel_size, stride=stem_stride, padding=stem_padding,
+            subsample_layers=stem_subsample_layers,
+            separated_stem=self.separated_stem)
+
+        # if self.separated_stem:
+        #     tmp = self.stem(Variable(torch.zeros([1, feature_dim[0], feature_dim[1], feature_dim[2]])))
+        # else:
         tmp = self.stem(Variable(torch.zeros([1, feature_dim[0], feature_dim[1], feature_dim[2]])))
-        module_H = tmp.size(2)
-        module_W = tmp.size(3)
+        module_H = tmp.size(-2)
+        module_W = tmp.size(-1)
+        print('dimensions')
+        print(module_H, module_W)
 
         self.stem_coords = coord_map((feature_dim[1], feature_dim[2]))
         self.coords = coord_map((module_H, module_W))
@@ -158,7 +175,7 @@ class FiLMedNet(nn.Module):
 
         init_modules(self.modules())
 
-    def forward(self, x, film, save_activations=False):
+    def forward(self, x, film, q=None, save_activations=False):
         # Initialize forward pass and externally viewable activations
         self.fwd_count += 1
         if save_activations:
@@ -194,6 +211,10 @@ class FiLMedNet(nn.Module):
         if self.stem_use_coords:
             x = torch.cat([x, stem_batch_coords], 1)
         feats = self.stem(x)
+        if self.separated_stem:
+            # unfeasible
+            mapped_ = self.map_program_idx_to_subtask[q]
+            feats = feats[:, mapped_]
         if save_activations:
             self.feats = feats
         N, _, H, W = feats.size()
