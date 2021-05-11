@@ -216,7 +216,10 @@ def generate_data_matrix(n_train,
     for id_, (x_, y_, n_, tuples_, split_) in enumerate(zip(x_original, y_original, n_list, tuples_list, split_name)):
 
         if h5_file:
-            f = h5py.File(join(path_output_folder, "feats_%s.hdf5" % split_), 'w')
+            if test_seen:
+                f = h5py.File(join(path_output_folder, "feats_in_distr_%s.hdf5" % split_), 'w')
+            else:
+                f = h5py.File(join(path_output_folder, "feats_%s.hdf5" % split_), 'w')
             dset = f.create_dataset('features',
                                     maxshape=(n_*n_questions, ch_, dim_x, dim_y),
                                     shape=(n_//2, ch_, dim_x, dim_y),
