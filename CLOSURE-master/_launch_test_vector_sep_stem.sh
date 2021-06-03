@@ -19,74 +19,84 @@ cd /om2/user/vanessad/understanding_reasoning/CLOSURE-master
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow-latest-tqm.simg python3 \
 -m scripts.run_model \
---execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector  \
+--execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_0  \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --part 'val' \
---output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_output_valA.h5
+--output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_0_output_valA.h5 \
+--test_dataset CoGenT
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow-latest-tqm.simg python3 \
 -m scripts.run_model \
---execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector  \
+--execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_0  \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --part 'valB' \
---output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_output_valB.h5
+--output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_0_output_valB.h5 \
+--test_dataset CoGenT
 
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow-latest-tqm.simg python3 \
 -m scripts.run_model \
---execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_0  \
+--execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_1  \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --part 'val' \
---output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_0_output_valA.h5
+--output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_1_output_valA.h5 \
+--test_dataset CoGenT
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow-latest-tqm.simg python3 \
 -m scripts.run_model \
---execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_0  \
+--execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_1  \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --part 'valB' \
---output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_0_output_valB.h5
+--output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_1_output_valB.h5 \
+--test_dataset CoGenT
 
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow-latest-tqm.simg python3 \
 -m scripts.run_model \
---execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_1  \
+--execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_2  \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --part 'val' \
---output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_1_output_valA.h5
+--output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_2_output_valA.h5 \
+--test_dataset CoGenT
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow-latest-tqm.simg python3 \
 -m scripts.run_model \
---execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_1  \
+--execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_2  \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --part 'valB' \
---output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_1_output_valB.h5
+--output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_2_output_valB.h5 \
+--test_dataset CoGenT
 
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow-latest-tqm.simg python3 \
 -m scripts.run_model \
---execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_2  \
+--execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_3  \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --part 'val' \
---output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_2_output_valA.h5
+--output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_3_output_valA.h5 \
+--test_dataset CoGenT
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow-latest-tqm.simg python3 \
 -m scripts.run_model \
---execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_2  \
+--execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_3  \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --part 'valB' \
---output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_2_output_valB.h5
+--output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_sep_stem_3_output_valB.h5 \
+--test_dataset CoGenT
 
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow-latest-tqm.simg python3 \
 -m scripts.run_model \
---execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_3  \
+--execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/sep_stem_vector  \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --part 'val' \
---output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_3_output_valA.h5
+--output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/sep_stem_vector_output_valA.h5 \
+--test_dataset CoGenT
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow-latest-tqm.simg python3 \
 -m scripts.run_model \
---execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_3  \
+--execution_engine /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/sep_stem_vector  \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --part 'valB' \
---output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/vector_3_output_valB.h5
+--output_h5 /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/sep_stem_vector_output_valB.h5 \
+--test_dataset CoGenT

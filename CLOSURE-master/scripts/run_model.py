@@ -84,6 +84,9 @@ parser.add_argument('--output_viz_dir', default='img/')
 parser.add_argument('--output_program_stats_dir', default=None)
 parser.add_argument('--percent_of_data', default=0.1)
 
+# Specify training dataset
+parser.add_argument('--test_dataset', default='CLEVR')  # or CoGenT
+
 grads = {}
 programs = {}  # NOTE: Useful for zero-shot program manipulation when in debug mode
 
@@ -139,7 +142,9 @@ def main(args):
             run_batch(args, pg, ee, loader, dtype)
 
 
-def run_batch(args, pg, ee, loader, dtype, bool_extract=False):
+def run_batch(args, pg, ee, loader, dtype):
+    print('test dataset')
+    print(args.test_dataset)
     if pg:
         pg.type(dtype)
         pg.eval()
@@ -164,7 +169,15 @@ def run_batch(args, pg, ee, loader, dtype, bool_extract=False):
 
     start = time.time()
     for batch in tqdm(loader):
-        bool_extract = True  # True for CLEVR
+        print(args.test_dataset)
+        if args.test_dataset == 'CoGenT':
+            bool_extract = False
+        elif args.test_dataset == 'CLEVR':
+            bool_extract = True
+        elif args.test_dataset == 'CLOSURE':
+            bool_extract = False
+        else:
+            raise ValueError('Check for your new test dataset')
         assert(not pg or not pg.training)
 
         assert(isinstance(ee, ClevrExecutor) or not ee.training)
@@ -175,10 +188,10 @@ def run_batch(args, pg, ee, loader, dtype, bool_extract=False):
         print(questions)
         print('questions shape', len(questions))
         # print(feats.shape)
-        # if bool_extract:
-        #     questions_var = questions[0].type(dtype).long()  # FIXME: IS THIS A TYPO!?
-        # else:
-        questions_var = questions.type(dtype).long()
+        if bool_extract:
+            questions_var = questions[0].type(dtype).long()
+        else:
+            questions_var = questions.type(dtype).long()
 
         # print(programs)
         questions_var = questions_var[:, :(questions_var.sum(0) > 0).sum()]
