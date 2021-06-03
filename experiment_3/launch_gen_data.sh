@@ -6,9 +6,9 @@
 #SBATCH -t 00:25:00
 #SBATCH --partition=normal
 
-module add openmind/singularity/3.4.1
+module add clustername/singularity/3.4.1
 
-singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.simg python main.py \
+singularity exec -B /om2:/om2 --nv path_singularity_tensorflow2.simg python main.py \
 --host_filesystem om2 \
 --experiment_index 0 \
 --offset_index 0 \

@@ -6,11 +6,11 @@
 #SBATCH --mem=26GB
 #SBATCH --gres=gpu:tesla-k80:1
 #SBATCH -t 35:00:00
-#SBATCH --partition=cbmm
+#SBATCH --partition=normal
 
-module add openmind/singularity/3.4.1
+module add clustername/singularity/3.4.1
 hostname
-singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.simg python3 main.py \
+singularity exec -B /om2:/om2 --nv path_singularity_tensorflow2.simg python3 main.py \
 --host_filesystem om2 \
 --offset_index 0 \
 --experiment_index ${SLURM_ARRAY_TASK_ID} \

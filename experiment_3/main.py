@@ -32,14 +32,13 @@ parser.add_argument('--run', type=str, required=True)
 FLAGS = parser.parse_args()
 # where to save and retrieve the experiments
 output_path = {
-    'om': '/om/user/vanessad/understanding_reasoning/experiment_3',
-    'om2': '/om2/user/vanessad/understanding_reasoning/experiment_3',
-    'vanessa': '/Users/vanessa/src/understanding_reasoning/experiment_3'}[FLAGS.host_filesystem]
+    'om': '--path to folder /understanding_reasoning/experiment_3',
+    'om2': '--path to folder /understanding_reasoning/experiment_3'}[FLAGS.host_filesystem]
 output_path = join(output_path, FLAGS.output_path)
 
 # output_path = join(output_path, 'results/')
 print(output_path)
-PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_3/data_generation/MNIST_splits"
+PATH_MNIST_SPLIT = "--path to folder /understanding_reasoning/experiment_3/data_generation/MNIST_splits"
 os.makedirs(output_path, exist_ok=True)
 
 def generate_data(id):
