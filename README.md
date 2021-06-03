@@ -3,6 +3,7 @@ Code for the analysis of Neural Module Networks (NMN) on VQA task.
 The repo will be divided in five folders. In all of them, we compare different variants of NMN architectures with different modularity.
 
 This code is highly inspired by the work of Bahdanau. 
+
 https://github.com/rizar/systematic-generalization-sqoop 
 https://github.com/rizar/CLOSURE
 
