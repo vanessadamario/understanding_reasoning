@@ -34,6 +34,10 @@ parser.add_argument('--new_data_path', type=bool, required=False, default=False)
 parser.add_argument('--new_output_path', type=bool, required=False, default=False)
 parser.add_argument('--data_path', type=str, required=False, default=None)
 parser.add_argument('--architecture_type', type=str, required=False, default=None)
+parser.add_argument('--h5_file', type=bool, required=False, default=False)
+parser.add_argument('--experiment_case', type=int, required=False, default=0)  # query
+parser.add_argument('--exact_activations', type=bool, required=False, default=False)
+
 
 FLAGS = parser.parse_args()
 print("test oos", FLAGS.test_oos)
@@ -42,15 +46,13 @@ print("dense", FLAGS.dense)
 # TODO DELETE: test
 # where to save and retrieve the experiments
 output_path = {
-    'om2': '/om2/user/vanessad/understanding_reasoning/experiment_1',
-    'om': '/om/user/vanessad/understanding_reasoning/experiment_1',
-    'vanessa': '/Users/vanessa/src/understanding_reasoning/experiment_1'}[FLAGS.host_filesystem]
+    'om2': '/--path to folder /understanding_reasoning/experiment_1',
+    'om': '/--path to folder /understanding_reasoning/experiment_1'}[FLAGS.host_filesystem]
 # output_path = join(output_path, 'pilot_stem_modulation/')
 #print(output_path)
-PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_1/data_generation/MNIST_splits"
+PATH_MNIST_SPLIT = "/--path to folder /understanding_reasoning/experiment_1/data_generation/MNIST_splits"
 
 output_path = FLAGS.output_path
-# output_path = '/om2/user/vanessad/understanding_reasoning/experiment_1/query_early_stopping/'
 print(output_path)
 os.makedirs(output_path, exist_ok=True)
 
@@ -69,7 +71,7 @@ def generate_data(id):
                                                        FLAGS.data_folder))
         return
 
-    if FLAGS.random_data_gen:
+    if FLAGS.random_data_gen:  # we always use this condition to generate our dataset
         from runs import data_attribute_random
         print("I am in data random")
         sys.stdout.flush()
@@ -84,6 +86,7 @@ def generate_data(id):
                                                      FLAGS.negative_train_combinations,
                                                      FLAGS.positive_test_combinations,
                                                      FLAGS.negative_test_combinations,
+                                                     h5_file=FLAGS.h5_file,
                                                      splits_folder=PATH_MNIST_SPLIT,
                                                      test_seen=FLAGS.test_seen,
                                                      dataset_name=FLAGS.dataset_name
@@ -91,6 +94,7 @@ def generate_data(id):
     else:
         from runs import data_attribute
         data_attribute.generate_data_file(output_data_folder,
+                                          h5_file=FLAGS.h5_file,
                                           splits_folder=PATH_MNIST_SPLIT)
 
 
@@ -163,25 +167,35 @@ def generate_query(id):
     build_mapping(output_data_folder, FLAGS.test_seen)
 
 
+def convert_h5_to_np(id):
+    from runs.convert_hdf5 import hdf5_to_single_numpy
+    output_data_folder = join(os.path.dirname(os.path.dirname(output_path)),
+                              'data_generation/datasets',
+                              FLAGS.dataset_name)
+    hdf5_to_single_numpy(id, output_data_folder, FLAGS.test_seen)
+
+
 def measure_activity(id):
     path_data_activity = join(dirname(FLAGS.output_path),
                               'data_generation/datasets',
                               FLAGS.dataset_name)
     # FIXME: query case only
     # if isfile(join(path_data_activity, 'query_in_distr_indexes_activations.npy')):
-    if isfile(join(path_data_activity, 'feats_query_activation.npy')):
-        from runs.analysis_neural_activity import compute_activations
-        print(FLAGS.architecture_type, FLAGS.dataset_name, FLAGS.output_path)
-        compute_activations(FLAGS.architecture_type,
-                            FLAGS.dataset_name,
-                            FLAGS.output_path)
-    else:
-        # from runs.dataset_neural_activity import sample_selection
-        # sample_selection(join(dirname(FLAGS.output_path), 'data_generation/datasets', FLAGS.dataset_name),
-        #                  experiment_case=0)
-        from runs.dataset_neural_activity import generate_activation_dataset
-        generate_activation_dataset(join(dirname(FLAGS.output_path), 'data_generation/datasets', FLAGS.dataset_name),
-                                    experiment_case=0)
+    from runs.analysis_neural_activity import compute_activations
+    from runs.dataset_neural_activity import generate_activation_dataset
+
+    if FLAGS.experiment_case == 0:
+        if FLAGS.exact_activations:
+            if not isfile(join(path_data_activity,
+                               'feats_query_activation.npy')):
+                generate_activation_dataset(join(dirname(FLAGS.output_path), 'data_generation/datasets', FLAGS.dataset_name), experiment_case=0)
+    compute_activations(FLAGS.architecture_type,
+                        FLAGS.dataset_name,
+                        FLAGS.output_path,
+                        FLAGS.experiment_case,
+                        FLAGS.exact_activations,
+                        FLAGS.new_output_path,
+                        FLAGS.new_data_path)
 
 
 switcher = {
@@ -191,7 +205,8 @@ switcher = {
     'update': update_json,
     'test': run_test,
     'gen_query': generate_query,
-    'activations': measure_activity
+    'activations': measure_activity,
+    'convert': convert_h5_to_np
 }
 
 switcher[FLAGS.run](FLAGS.experiment_index + FLAGS.offset_index)
