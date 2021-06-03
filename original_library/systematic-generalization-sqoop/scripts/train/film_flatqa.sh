@@ -7,12 +7,12 @@
 #SBATCH --gres=gpu:tesla-k80:1
 #SBATCH --partition=normal
 
-module add openmind/singularity/3.4.1
+module add clustername/singularity/3.4.1
 
-singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tensorflow2.simg \
-  python /om/user/vanessad/om/user/vanessad/original_library/systematic-generalization-sqoop/scripts/train_model.py \
+singularity exec -B /om:/om --nv path_singularity \
+  python path_to_folder_repeated/original_library/systematic-generalization-sqoop/scripts/train_model.py \
   --feature_dim=3,64,64 \
-  --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-variety_1-repeats_30000 \
+  --data_dir path_to_folder_repeated/compositionality/sqoop-variety_1-repeats_30000 \
   --model_type FiLM \
   --num_iterations 200000 \
   --checkpoint_every 1000 \
@@ -53,3 +53,5 @@ singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tensorflow2.si
   --use_beta 1 \
   --condition_method bn-film \
   --program_generator_parameter_efficient 1 $@
+
+# tensorflow2

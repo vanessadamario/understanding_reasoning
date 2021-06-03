@@ -9,13 +9,13 @@
 #SBATCH --constraint=8GB
 #SBATCH --partition=normal
 
-module add openmind/singularity/3.4.1
+module add clustername/singularity/3.4.1
 
-singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tensorflow2.simg \
-  python3 /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/scripts/train_model.py \
+singularity exec -B /om:/om --nv path_singularity-tensorflow2.simg \
+  python3 path_to_folder/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/scripts/train_model.py \
   --feature_dim=3,64,64 \
-  --checkpoint_path /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/results/FiLM/lhs1/${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}.pt \
-  --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-no_crowding-variety_1-repeats_30000 \
+  --checkpoint_path path_to_folder/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/results/FiLM/lhs1/${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}.pt \
+  --data_dir path_to_folder/path_to_folder/compositionality/sqoop-no_crowding-variety_1-repeats_30000 \
   --model_type FiLM \
   --num_iterations 200000 \
   --checkpoint_every 1000 \

@@ -6,18 +6,18 @@
 #SBATCH --mem=20GB
 #SBATCH -t 30:00:00
 #SBATCH --gres=gpu:tesla-k80:1
-#SBATCH --partition=cbmm
-#SBATCH -D /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/slurm_output
+#SBATCH --partition=normal
+#SBATCH -D /path_to_folder/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/slurm_output
 
 
-module add openmind/singularity/3.4.1
+module add clustername/singularity/3.4.1
 
-singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tensorflow2.simg \
-python /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/scripts/train_model.py \
+singularity exec -B /om:/om --nv path_to_singularity-tensorflow2.simg \
+python /path_to_folder/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/scripts/train_model.py \
   --feature_dim=3,64,64 \
-  --checkpoint_path /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/results/mac_wo_lstm/lhs1/${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}.pt \
+  --checkpoint_path /path_to_folder/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/results/mac_wo_lstm/lhs1/${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}.pt \
   --model_type MAC \
-  --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-no_crowding-variety_1-repeats_30000 \
+  --data_dir /path_to_folder/path_to_folder/compositionality/sqoop-no_crowding-variety_1-repeats_30000 \
   --num_iterations 200000 \
   --checkpoint_every 1000 \
   --record_loss_every 10 \

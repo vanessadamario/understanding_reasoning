@@ -9,11 +9,11 @@
 #SBATCH --partition=normal
 
 
-python add openmind/singularity/3.4.1
+python add clustername/singularity/3.4.1
 
-singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tensorflow2.simg \
-  python /om/user/vanessad/om/user/vanessad/compositionality/scripts/train_model.py \
-  --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-variety_1-repeats_30000 \
+singularity exec -B /om:/om --nv path_singularity_tensorflow2.simg \
+  python path_to_folder/path_to_folder/compositionality/scripts/train_model.py \
+  --data_dir path_to_folder/path_to_folder/compositionality/sqoop-variety_1-repeats_30000 \
   --feature_dim 3,64,64 \
   --num_val_samples 1000 \
   --checkpoint_every 1000 \

@@ -8,12 +8,12 @@
 #SBATCH --gres=gpu:tesla-k80:1
 #SBATCH --partition=normal
 
-module add openmind/singularity/3.4.1
+module add clustername/singularity/3.4.1
 
-singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tensorflow2.simg \
-python /om/user/vanessad/om/user/vanessad/original_library/systematic-generalization-sqoop/scripts/train_model.py \
+singularity exec -B /om:/om --nv path_to_singularity_containers \
+python --path_to_folder_repeated/original_library/systematic-generalization-sqoop/scripts/train_model.py \
   --model_type SHNMN \
-  --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-variety_1-repeats_30000 \
+  --data_dir path_to_folder/sqoop-variety_1-repeats_30000 \
   --hard_code_tau --tau_init chain --hard_code_alpha --alpha_init correct\
   --feature_dim=3,64,64 \
   --num_iterations=50000 \
@@ -33,3 +33,5 @@ python /om/user/vanessad/om/user/vanessad/original_library/systematic-generaliza
   --classifier_downsample maxpoolfull \
   --classifier_proj_dim 512 \
   --program_generator_parameter_efficient 1 $@
+
+# tensorflow2.simg

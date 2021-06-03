@@ -6,15 +6,15 @@
 #SBATCH --mem=30GB
 #SBATCH -t 40:00:00
 #SBATCH --gres=gpu:tesla-k80:1
-#SBATCH --partition=cbmm
-#SBATCH -D /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/slurm_output
+#SBATCH --partition=normal
+#SBATCH -D /path_to_folder/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/slurm_output
 module add openmind/singularity/3.4.1
 
-singularity exec -B /om:/om --nv /om/user/xboix/singularity/xboix-tensorflow2.simg \
-python /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/scripts/train_model.py \
+singularity exec -B /om:/om --nv path_to_singularity-tensorflow2.simg \
+python /path_to_folder/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/scripts/train_model.py \
   --model_type SHNMN \
-  --checkpoint_path /om/user/vanessad/understanding_reasoning/original_library/systematic-generalization-sqoop/results/tree_mixed_find/${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}_.pt \
-  --data_dir /om/user/vanessad/om/user/vanessad/compositionality/sqoop-variety_1-repeats_30000 \
+  --checkpoint_path /path_to_folder/understanding_reasoning/original_library/systematic-generalization-sqoop/results/tree_mixed_find/${SLURM_JOBID}_${SLURM_ARRAY_TASK_ID}_.pt \
+  --data_dir /path_to_folder/path_to_folder/compositionality/sqoop-variety_1-repeats_30000 \
   --hard_code_tau --tau_init tree --hard_code_alpha --alpha_init correct \
   --feature_dim=3,64,64 \
   c500000 \
