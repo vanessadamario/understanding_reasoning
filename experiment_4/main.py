@@ -7,7 +7,6 @@ from os.path import join
 from runs import experiments
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_index', type=int, required=True)
 parser.add_argument('--relations', type=bool, required=False, default=True)
@@ -28,36 +27,40 @@ parser.add_argument('--on_validation', type=bool, required=False, default=False)
 parser.add_argument('--h5_file', type=bool, required=False, default=False)
 parser.add_argument('--modify_path', type=bool, required=False, default=False)  # AWS experiments
 parser.add_argument('--run', type=str, required=True)
+parser.add_argument('--data_path', type=str, required=False, default=None)
+
 
 FLAGS = parser.parse_args()
+print(FLAGS)
 # where to save and retrieve the experiments
 output_path = {
-    'om': '/om/user/vanessad/understanding_reasoning/experiment_4',
-    'om2_exp4': '/om2/user/vanessad/understanding_reasoning/experiment_4',
-    'om2_exp2': '/om2/user/vanessad/understanding_reasoning/experiment_2',
-    'vanessa': '/Users/vanessa/src/understanding_reasoning/experiment_4'}[FLAGS.host_filesystem]
+    'om2_exp4': '--path to folder /understanding_reasoning/experiment_4',
+    'om2_exp2': '--path to folder /understanding_reasoning/experiment_2'}[FLAGS.host_filesystem]
 output_path = join(output_path, FLAGS.output_folder + "/")
 print("output path: %s" % output_path)
-PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_1/data_generation/MNIST_splits"
+PATH_MNIST_SPLIT = "--path to folder /understanding_reasoning/experiment_1/data_generation/MNIST_splits"
 os.makedirs(output_path, exist_ok=True)
 print("Load model: ", FLAGS.load_model)
 
 
 def generate_data(id):
     """ Generation/update of the json file with data details """
-    output_data_folder = join(os.path.dirname(os.path.dirname(output_path)),
-                              'data_generation/datasets/')
+    if FLAGS.root_data_folder is None:
+        output_data_folder = join(os.path.dirname(os.path.dirname(output_path)),
+                                  'data_generation/datasets/')
+    else:
+        output_data_folder = FLAGS.root_data_folder
     print(output_data_folder)
     output_data_path = join(output_data_folder, FLAGS.dataset_name)
     os.makedirs(output_data_path, exist_ok=True)
-
+    print(output_data_path)
     if FLAGS.relations:
         if FLAGS.attribute_comparison:
             from runs.data_comparison_relations import DataGenerator
             if FLAGS.host_filesystem == 'om2_exp4':
                 DG = DataGenerator(PATH_MNIST_SPLIT,
                                    variety=FLAGS.variety,
-                                   image_size=64,
+                                   image_size=128,  # 64 if in the old version
                                    spatial_only=FLAGS.spatial_only,
                                    single_image=True,
                                    gen_in_distr_test=FLAGS.test_seen)
@@ -101,7 +104,6 @@ def run_test(id):
     print(FLAGS.test_oos)
     opt = experiments.get_experiment(output_path, id)
     if FLAGS.modify_path:
-
         _data_name = opt.dataset.dataset_id
         _train_id = opt.id
         opt.dataset.dataset_id_path = join(FLAGS.root_data_folder, _data_name)
@@ -140,6 +142,7 @@ def update_json(id):
     from runs.update import check_update
     """ Write on the json if the experiments are completed,
     by changing the flag. """
+    print(output_path)
     check_update(output_path)
 
 

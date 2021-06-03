@@ -11,21 +11,11 @@ module add clustername/singularity/3.4.1
 singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python main.py \
 --host_filesystem om2_exp4 \
 --experiment_index 0 \
---variety 1 \
---root_data_folder path_to_folder/understanding_reasoning/experiment_4/data_generation/datasets/ \
---dataset_name dataset_30 \
---spatial_only True \
---h5_file True \
---run gen_data
-
-singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python main.py \
---host_filesystem om2_exp4 \
---experiment_index 0 \
 --variety 2 \
 --root_data_folder path_to_folder/understanding_reasoning/experiment_4/data_generation/datasets/ \
---dataset_name dataset_31 \
+--dataset_name dataset_19 \
 --spatial_only True \
---h5_file True \
+--test_seen True \
 --run gen_data
 
 singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python main.py \
@@ -33,9 +23,9 @@ singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python m
 --experiment_index 0 \
 --variety 5 \
 --root_data_folder path_to_folder/understanding_reasoning/experiment_4/data_generation/datasets/ \
---dataset_name dataset_32 \
+--dataset_name dataset_20 \
 --spatial_only True \
---h5_file True \
+--test_seen True \
 --run gen_data
 
 singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python main.py \
@@ -43,9 +33,9 @@ singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python m
 --experiment_index 0 \
 --variety 8 \
 --root_data_folder path_to_folder/understanding_reasoning/experiment_4/data_generation/datasets/ \
---dataset_name dataset_33 \
+--dataset_name dataset_21 \
 --spatial_only True \
---h5_file True \
+--test_seen True \
 --run gen_data
 
 singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python main.py \
@@ -53,9 +43,9 @@ singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python m
 --experiment_index 0 \
 --variety 10 \
 --root_data_folder path_to_folder/understanding_reasoning/experiment_4/data_generation/datasets/ \
---dataset_name dataset_34 \
+--dataset_name dataset_22 \
 --spatial_only True \
---h5_file True \
+--test_seen True \
 --run gen_data
 
 singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python main.py \
@@ -63,7 +53,12 @@ singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python m
 --experiment_index 0 \
 --variety 20 \
 --root_data_folder path_to_folder/understanding_reasoning/experiment_4/data_generation/datasets/ \
---dataset_name dataset_35 \
+--dataset_name dataset_23 \
 --spatial_only True \
---h5_file True \
+--test_seen True \
 --run gen_data
+
+
+####
+
+

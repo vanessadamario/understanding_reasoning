@@ -1,25 +1,27 @@
 #!/bin/bash
 #SBATCH -N 1
-#SBATCH --array=120,123-147
-#SBATCH --job-name=S_half-sep_find
-#SBATCH --mem=32GB
+#SBATCH --array=
+#SBATCH --job-name=trainEXP4
+#SBATCH --mem=26GB
 #SBATCH --constraint=8GB
 #SBATCH -x node023,node026
 #SBATCH --gres=gpu:1
-#SBATCH -t 20:00:00
+#SBATCH -t 90:00:00
 #SBATCH --partition=normal
-#SBATCH -D /om2/user/vanessad/understanding_reasoning/experiment_4/slurm_output
+#SBATCH -D path_to_folder/understanding_reasoning/experiment_4/slurm_output
 
-module add openmind/singularity/3.4.1
+module add clustername/singularity/3.4.1
 hostname
 echo $CUDA_VISIBLE_DEVICES
 echo $CUDA_DEVICE_ORDER
 
-singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.simg python3 \
-/om2/user/vanessad/understanding_reasoning/experiment_4/main.py \
+
+singularity exec -B /om2:/om2 --nv path_singularity/tensorflow2.5.0.simg python3 \
+path_to_folder/understanding_reasoning/experiment_4/main.py \
 --host_filesystem om2_exp4 \
+--offset_index 3600 \
 --load_model True \
---output_folder spatial_only \
+--output_folder spatial_only_second_trial \
 --experiment_index ${SLURM_ARRAY_TASK_ID} \
 --run train
 
