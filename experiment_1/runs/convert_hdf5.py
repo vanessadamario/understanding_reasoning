@@ -5,8 +5,12 @@ import numpy as np
 from os.path import join
 
 
-def hdf5_to_single_numpy(id, dataset_path):
-    split_list = ['train', 'valid', 'test']
+def hdf5_to_single_numpy(id, dataset_path, test_in_distr=False):
+    if test_in_distr:
+        split_list = ['in_distr_valid', 'in_distr_test']
+    else:
+        split_list = ['train', 'valid', 'test']
+
     for split_ in split_list:
         try:
             print(dataset_path)

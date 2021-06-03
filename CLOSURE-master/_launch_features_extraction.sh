@@ -2,41 +2,58 @@
 #SBATCH -N 1
 #SBATCH --array=0
 #SBATCH -c 1
-#SBATCH --job-name=pilotClevrVECT
-#SBATCH --mem=30GB
-#SBATCH --gres=gpu:tesla-k80:1
-#SBATCH -t 05:00:00
-#SBATCH --partition=cbmm
-#SBATCH -D /om2/user/vanessad/understanding_reasoning/CLOSURE-master/output_slurm
+#SBATCH --job-name=extract_feats
+#SBATCH --mem=10GB
+#SBATCH --gres=gpu:titan-x:1
+#SBATCH -t 01:00:00
+#SBATCH --partition=normal
 
-module add openmind/singularity/3.4.1
+module add clustername/singularity/3.4.1
 hostname
 echo $CUDA_VISIBLE_DEVICES
 echo $CUDA_DEVICE_ORDER
 
-singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.simg python3 \
--m scripts.train_model \
---model_type EE \
---num_iterations 500000 \
---num_val_samples 100000 \
---load_features 0 \
---loader_num_workers 1 \
---record_loss_every 100 \
---learning_rate 1e-4 \
---classifier_downsample=none \
---classifier_fc_dims= \
---classifier_proj_dim=0 \
---discriminator_downsample=none \
---discriminator_fc_dims= \
---discriminator_proj_dim=0 \
---nmn_use_film=1 \
---nmn_module_pool=max \
---module_num_layers=2 \
---nmn_use_gammas=tanh \
---classifier_fc_dims=1024 \
---batch_size 128 \
---checkpoint_path /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/vector_${SLURM_ARRAY_TASK_ID} \
---data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset/CLOSURE
-$@
+cd path_to_folder/understanding_reasoning/CLOSURE-master
 
+declare -a StringArray=("and_mat_spa_val.json" "compare_mat_spa_val.json" "compare_mat_val.json" "embed_mat_spa_val.json" "embed_spa_mat_val.json" "or_mat_spa_val.json")
 
+for val in "${StringArray[@]}"
+do
+  echo $val
+  singularity exec -B /om2:/om2 --nv singularity_path python3 \
+  ./scripts/preprocess_questions.py \
+  --input_questions_json path_to_folder/understanding_reasoning/CLOSURE-master/closure_2/${val} # dataset/CLOSURE/$val \
+  --output_h5_file path_to_folder/understanding_reasoning/CLOSURE-master/closure_2/${val}_val_questions.h5 # dataset/CLOSURE/${val}_val_questions.h5 \
+  --output_vocab_json path_to_folder/understanding_reasoning/CLOSURE-master/closure_2/vocab.json
+done
+# tensorflow2.5.0.simg
+#
+#singularity exec -B /om2:/om2 --nv singularity_path python3 \
+#./scripts/preprocess_questions.py \
+#--input_questions_json dataset/CLEVR_v1.0/questions/CLEVR_val_questions.json \
+#--output_h5_file dataset/val_questions.h5 \
+#--output_vocab_json dataset/vocab.json
+#tensorflow2
+#
+#singularity exec -B /om2:/om2 --nv singularity_path python3 \
+#./scripts/preprocess_questions.py \
+#--input_questions_json dataset/CLEVR_v1.0/questions/CLEVR_test_questions.json \
+#--output_h5_file dataset/test_questions.h5 \
+#--output_vocab_json dataset/vocab.json
+#
+## singularity exec -B /om2:/om2 --nv singularity_path python3 \
+## ./scripts/extract_features.py \
+## --input_image_dir dataset/CLEVR_v1.0/images/train \
+## --output_h5_file dataset/CLEVR_v1.0/train_features.h5
+#
+#
+## singularity exec -B /om2:/om2 --nv singularity_path python3 \
+## ./scripts/extract_features.py  \
+## --input_image_dir dataset/CLEVR_v1.0/images/val \
+## --output_h5_file dataset/CLEVR_v1.0/val_features.h5
+#
+#
+## singularity exec -B /om2:/om2 --nv singularity_path python3 \
+## ./scripts/extract_features.py  \
+## --input_image_dir dataset/CLEVR_v1.0/images/test \
+## --output_h5_file dataset/CLEVR_v1.0/test_features.h5

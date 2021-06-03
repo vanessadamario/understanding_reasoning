@@ -7,20 +7,20 @@
 #SBATCH --gres=gpu:1
 #SBATCH --constraint=8GB
 #SBATCH -t 150:00:00
-#SBATCH --partition=cbmm
-#SBATCH -D /om2/user/vanessad/understanding_reasoning/CLOSURE-master/output_slurm
+#SBATCH --partition=normal
+#SBATCH -D path_to_folder/understanding_reasoning/CLOSURE-master/output_slurm
 
 
 
-module add openmind/singularity/3.4.1
+module add clustername/singularity/3.4.1
 hostname
 echo $CUDA_VISIBLE_DEVICES
 echo $CUDA_DEVICE_ORDER
 
-cd /om2/user/vanessad/understanding_reasoning/CLOSURE-master
+cd path_to_folder/understanding_reasoning/CLOSURE-master
 
 
-singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.5.0.simg python3 \
+singularity exec -B /om2:/om2 --nv path_to_singularity python3 \
 -m scripts.train_model \
   --model_type MAC \
   --num_iterations 1000000 \
@@ -58,6 +58,8 @@ singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.
   --classifier_dropout 0. \
   --grad_clip 8. \
   --allow_resume True \
-  --checkpoint_path /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/MAC_${SLURM_ARRAY_TASK_ID} \
-  --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
+  --checkpoint_path path_to_folder/understanding_reasoning/CLOSURE-master/results/CoGenT/MAC_${SLURM_ARRAY_TASK_ID} \
+  --data_dir path_to_folder/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
   --program_generator_parameter_efficient 1 $@
+
+  # tensorflow2.5.0.simg

@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -N 1
-#SBATCH --array=0,2
+#SBATCH --array=0-4
 #SBATCH -c 1
-#SBATCH --job-name=FiLMCoGenT
+#SBATCH --job-name=FiLMBNClevr
 #SBATCH --mem=60GB
 #SBATCH --gres=gpu:1
 #SBATCH --constraint=8GB
@@ -15,6 +15,7 @@ echo $CUDA_VISIBLE_DEVICES
 echo $CUDA_DEVICE_ORDER
 
 cd path_to_folder/understanding_reasoning/CLOSURE-master
+
 
 singularity exec -B /om2:/om2 --nv path_to_sing python3 \
 -m scripts.train_model \
@@ -56,10 +57,8 @@ singularity exec -B /om2:/om2 --nv path_to_sing python3 \
 --gamma_baseline 1 \
 --use_gamma 1 \
 --use_beta 1 \
---allow_resume True \
 --condition_method bn-film \
---checkpoint_path path_to_folder/understanding_reasoning/CLOSURE-master/results/CoGenT/FiLM_${SLURM_ARRAY_TASK_ID} \
---data_dir path_to_folder/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
+--allow_resume True \
+--checkpoint_path path_to_folder/understanding_reasoning/CLOSURE-master/results/CLEVR/with_bn/FiLM_${SLURM_ARRAY_TASK_ID} \
+--data_dir path_to_folder/understanding_reasoning/CLOSURE-master/dataset/CLEVR_v1.0 \
 --program_generator_parameter_efficient 1 $@
-
-# tensorflow2

@@ -272,8 +272,8 @@ def generate_combinations(n_combinations_train=1,
     # we force the dataset to be red
 
     # dataset 15-19 random seed 123
-    np.random.seed(123)  # in this way the tuples are always the same datasets 0-5
-    # np.random.seed(456)  # for datasets 6-11
+    # np.random.seed(123)  # [0-5]in (18-23) this way the tuples are always the same datasets 0-5
+    np.random.seed(456)  # for datasets 6-11  - (24-29 exp_4)
     # np.random.seed(789)  # for datasets 12-17
     # especially at test
 

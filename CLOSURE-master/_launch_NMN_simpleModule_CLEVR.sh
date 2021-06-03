@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -N 1
-#SBATCH --array=1-2
+#SBATCH --array=0
 #SBATCH -c 1
-#SBATCH --job-name=vecSepCLEVR
+#SBATCH --job-name=CLEVR_T_FiLM
 #SBATCH --mem=8GB
 #SBATCH --gres=gpu:1
 #SBATCH --constraint=8GB
@@ -11,15 +11,16 @@
 
 module add clustername/singularity/3.4.1
 hostname
+
 echo $CUDA_VISIBLE_DEVICES
 echo $CUDA_DEVICE_ORDER
 
 cd path_to_folder/understanding_reasoning/CLOSURE-master
 
-singularity exec -B /om2:/om2 --nv path_to_simg python3 \
+singularity exec -B /om2:/om2 --nv path_to_sing python3 \
 -m scripts.train_model \
 --model_type EE \
---nmn_use_simple_block 0 \
+--nmn_use_simple_block 1 \
 --num_iterations 500000 \
 --num_val_samples 100000 \
 --load_features 0 \
@@ -32,15 +33,14 @@ singularity exec -B /om2:/om2 --nv path_to_simg python3 \
 --discriminator_downsample=none \
 --discriminator_fc_dims= \
 --discriminator_proj_dim=0 \
---nmn_use_film=1 \
+--nmn_use_film=0 \  # no FiLM
 --nmn_module_pool=max \
 --module_num_layers=2 \
 --nmn_use_gammas=tanh \
 --classifier_fc_dims=1024 \
 --batch_size 128 \
 --allow_resume True \
---checkpoint_path path_to_folder/understanding_reasoning/CLOSURE-master/results/CLEVR/vector_sep_stem_${SLURM_ARRAY_TASK_ID} \
+--checkpoint_path path_to_folder/understanding_reasoning/CLOSURE-master/results/CLEVR/simpleModule_noFiLM \
 --data_dir path_to_folder/understanding_reasoning/CLOSURE-master/dataset/CLEVR_v1.0 \
---separated_stem True
-$@_
+$@
 

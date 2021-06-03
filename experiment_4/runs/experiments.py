@@ -8,24 +8,23 @@ experiment_case_list = [1]  # [1] for VQA and binary answers
 lr_array = [1e-2, 5e-3, 1e-3, 1e-5, 1e-4]  # [1e-4, 1e-5]  #
 method_type_list = ["SHNMN"]
 batch_list = [64]
-dataset_dict = {"dataset_name": ["dataset_0",
-                                 "dataset_1",
-                                 "dataset_2",
-                                 "dataset_3",
-                                 "dataset_4",
-                                 "dataset_5",
+dataset_dict = {"dataset_name": ["dataset_24",
+                                 "dataset_25",
+                                 "dataset_26",
+                                 "dataset_27",
+                                 "dataset_28",
+                                 "dataset_29",
                                  ]
                 }
 
-dict_method_type = {"use_module": "residual"
-                                  "",
+dict_method_type = {"use_module": "residual",
                     "model_type": 'soft',
                     "tau_init": "tree",
                     "alpha_init": "correct",
                     "model_bernoulli": 0.5,
                     "hard_code_alpha": True,
                     "hard_code_tau": True,
-                    "feature_dim": [3, 28, 28],  # TODO: input dimensions
+                    "feature_dim": [3, 64, 64],  # TODO: input dimensions
                     "module_dim": 64,
                     "module_kernel_size": 3,
                     "stem_dim": 64,
@@ -479,7 +478,7 @@ class Dataset(object):
                  dataset_split="train",
                  dataset_id_path="",
                  experiment_case=1,
-                 image_size=28,
+                 image_size=64,
                  n_training=210000,
                  policy=None):
         """

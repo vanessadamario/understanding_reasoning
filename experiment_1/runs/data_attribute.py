@@ -404,7 +404,11 @@ def build_tr_vl():
 
 
 def generate_data_file(output_data_folder,
+                       h5_file,
                        splits_folder):
+    if h5_file:
+        print('we want the h5')
+        return
     train_df, test_df = build_tr_vl()
     out_dict = generate_dataset_json(train_df,
                                      test_df,
