@@ -47,7 +47,7 @@ We go in the experiment_* folder (should better be called case_* folder, among t
 python main.py --host-filesystem ** --experiment_index 0 --run gen_exp
 
 The output of this operation is a folder : results, containing a train.json file, with all the necessary params to train a specific network on a dataset
-
+(In case of experiment_2 you need to create a new folder, as all the code for dataset generation and training is in experiment_4)
 Before this call, we need to specify the architecture hyper-parameters and the datasets, in experiments.py (dict_method_type dictionary) 
 
 #### Parameters to change in _dict_method_type_ (experiments.py)
