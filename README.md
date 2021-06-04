@@ -5,6 +5,7 @@ The repo will be divided in five folders. In all of them, we compare different v
 This code is highly inspired by the work of Bahdanau. 
 
 https://github.com/rizar/systematic-generalization-sqoop 
+
 https://github.com/rizar/CLOSURE
 
 
