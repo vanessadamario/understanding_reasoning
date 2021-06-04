@@ -13,24 +13,30 @@ and
 https://github.com/rizar/systematic-generalization-sqoop 
 
 
-**CLOSURE**: all the experiments of the CLEVR datasets.
+**CLOSURE-master**: all the experiments of the CLEVR datasets.
 
-**experiment 1**: single object in the scene, single NMN block. E.g., VQA question: _Is the object red?_  
+**experiment_1**: single object in the scene, single NMN block. E.g., VQA question: _Is the object red?_  
 
-**experiment 2**: one object per scene, two scenes in total, comparison, 3 NMN blocks in a tree configuration. 
-E.g., question: _Is 6 the same color of 7?_ (data generation in progress)
+**experiment_2**: one object per scene, two scenes in total, comparison, 3 NMN blocks in a tree configuration. 
+E.g., question: _Is 6 the same color of 7?_ (data generation in progress). (All the runs of experiment_2 are generated through the code in experiment_4)
 
-**experiment 3**: multiple objects per scene, single NMN block, same question as experiment_1  
+**experiment_3**: multiple objects per scene, single NMN block, same question as experiment_1  
 
-**experiment 4**: multiple objects per scene, single NMN block,
+**experiment_4**: multiple objects per scene, single NMN block,
 comparison as in experiment 2 (data generation in progress)
 
-**original library**: the experiments ran already for this case.
-
-There are 5 types of architectures: (1) find, (2) half-separated find, (3) separated find, (4) residual, (5) separated residual. We use these architectures across all the experiments_* 
+**original_library**: SQOOP experiments, from Bahdanau, and two objects per scene case.
+## Multi-attribute MNIST
+There are several types of NMNs: those can be specified by changing the parameters in the experiments.py files.
+We use these architectures across all the experiment_*
 
 ### main.py
-Through the main.py, for each case (experiment_*) we generate data, we specify the hyper-parameters for the experiments, we train those networks and test them.
+Through the main.py, for each case (experiment_*) we generate data, 
+we specify the hyper-parameters for the experiments (everything gets saved in a json file, 
+each experiment in the json has its unique identifier), 
+we train those networks and test them. 
+The pipeline is customized to run on a cluster, but it can be easily adapt by changing the 
+the *sh files. You can modify the output_path in the main.py file.
 
 #### Check the path in main.py
 Change output_path
@@ -51,17 +57,18 @@ In the following
 The **architecture_name** does not appear anywhere in the code, but helps as a reference.
 The other keys in this dictionary do not change across **experiment**, we specify only those that must be modified.
 
-**find**  
+**all - all - all**  
 _dict_method_type_ = {"use_module": "find",  
                          "feature_dim": # input dimensions (depend on the dataset),  
-                              "stem_batchnorm": 1,  
-                              "classifier_batchnorm": 1,  
+                              "stem_batchnorm": 0,  
+                              "classifier_batchnorm": 0,  
                               "separated_stem": False,   
                               "separated_module": False,  
                               "separated_classifier": False  
                              }
+
                              
-**half-separated find**  
+**all - group - group**  
 _dict_method_type_ = {"use_module": "find",  
                                              "feature_dim": # input dimensions (depend on the dataset),  
                                              "stem_batchnorm": 0,  
@@ -71,7 +78,7 @@ _dict_method_type_ = {"use_module": "find",
                                              "separated_classifier": True  
                                             }  
                                                                          
-**separated find**  
+**group - group - group**  
 _dict_method_type_ = {"use_module": "find",  
                                         "feature_dim": # input dimensions (depend on the dataset),  
                                         "stem_batchnorm": 0,  
@@ -80,8 +87,18 @@ _dict_method_type_ = {"use_module": "find",
                                         "separated_module": True,  
                                         "separated_classifier": True  
                                         }  
-                             
-**residual**   
+
+**sub-task - sub-task - sub-task**   
+_dict_method_type_ = {"use_module": "residual",  
+"feature_dim": # input dimensions (depends on the dataset),    
+"stem_batchnorm": 0,  
+"classifier_batchnorm": 0,  
+"separated_stem": True,  
+"separated_module": True,  
+"separated_classifier": True  
+}
+
+**all - sub-task - all**   
 _dict_method_type_ = {"use_module": "residual",  
                                   "feature_dim": # input dimensions (depend on the dataset),  
                                   "stem_batchnorm": 0,  
@@ -90,19 +107,49 @@ _dict_method_type_ = {"use_module": "residual",
                                   "separated_module": False,  
                                   "separated_classifier": False  
                                  }  
-                                 
-**separated residual**   
-_dict_method_type_ = {"use_module": "residual",  
-                                            "feature_dim": # input dimensions (depends on the dataset),    
-                                            "stem_batchnorm": 0,  
-                                            "classifier_batchnorm": 0,  
-                                            "separated_stem": True,  
-                                            "separated_module": True,  
-                                            "separated_classifier": True  
-                                           }  
 
-"feature_dim" = [3, 28, 28] if experiment_1  
-"feature_dim" = [3, 64, 64] if experiment_3  
+**all(bn) - all - all(bn)**  
+_dict_method_type_ = {"use_module": "find",  
+"feature_dim": # input dimensions (depend on the dataset),  
+"stem_batchnorm": 1,  
+"classifier_batchnorm": 1,  
+"separated_stem": False,   
+"separated_module": False,  
+"separated_classifier": False  
+}
+
+**all(bn) - sub-task - all(bn)**   
+_dict_method_type_ = {"use_module": "residual",  
+"feature_dim": # input dimensions (depend on the dataset),  
+"stem_batchnorm": 1,  
+"classifier_batchnorm": 1,  
+"separated_stem": False,  
+"separated_module": False,  
+"separated_classifier": False  
+}
+
+**all - sub-task/group - all**
+_dict_method_type_ = {"use_module": "mixed",  
+"feature_dim": # input dimensions (depend on the dataset),  
+"stem_batchnorm": 0,  
+"classifier_batchnorm": 0,  
+"separated_stem": False,  
+"separated_module": True,  
+"separated_classifier": False  
+}
+
+**sub-task - sub-task/group - all**
+_dict_method_type_ = {"use_module": "mixed",  
+"feature_dim": # input dimensions (depend on the dataset),  
+"stem_batchnorm": 0,  
+"classifier_batchnorm": 0,  
+"separated_stem": True,  
+"separated_module": True,  
+"separated_classifier": False  
+}
+
+"feature_dim" = [3, 28, 28] if experiment_1 and experiment_2 
+"feature_dim" = [3, 64, 64] if experiment_3 and experiment_4
 
 #### Parameters to change in experiments.py
 In _experiments.py_ there are some further variables which are important for the experiment generation phase.  
@@ -121,6 +168,20 @@ dataset_dict = {"dataset_name": ["dataset_15",
 python main.py --host-filesystem _**_ --experiment_index _experiment_id_ --run _train_ 
 An important flag here, in case the experiment did not train for the specified amount of iterations, is    
 --load_model (bool), if False, we train from scratch. Otherwise, we load the model at last iteration ./results/train_(experiment_id)/model, as we start the training from there.
+
+
+## SQOOP experiments
+You can either generate the dataset from the code, or download it from here https://www.dropbox.com/s/2jmvt5q1eb66hat/sqoop-no_crowding-variety_1-repeats_30000.zip?dl=0
+
+Run the code using the *.sh scripts (first commands are referred to the cluster and the use of singularity image).
+
+## CLEVR experiments
+Download the data as described here https://github.com/rizar/CLOSURE
+
+Read and use the _launch_features_extraction.sh
+
+Run the code using the *.sh scripts (first commands are referred to the cluster and the use of singularity image)
+
 
 
 

@@ -13,6 +13,9 @@ hostname
 echo $CUDA_VISIBLE_DEVICES
 echo $CUDA_DEVICE_ORDER
 
+# CODE PERFORMS QUESTION GENERATION FOR CLOSURE
+# QUESTION GENERATION FOR OTHER CLEVR DATASET (COMMENTED)
+# FEATURE EXTRACTION (COMMENTED)
 cd path_to_folder/understanding_reasoning/CLOSURE-master
 
 declare -a StringArray=("and_mat_spa_val.json" "compare_mat_spa_val.json" "compare_mat_val.json" "embed_mat_spa_val.json" "embed_spa_mat_val.json" "or_mat_spa_val.json")
@@ -28,6 +31,8 @@ do
 done
 # tensorflow2.5.0.simg
 #
+
+# QUESTION GENERATION FOR ORIGINAL CLEVR DATASET
 #singularity exec -B /om2:/om2 --nv singularity_path python3 \
 #./scripts/preprocess_questions.py \
 #--input_questions_json dataset/CLEVR_v1.0/questions/CLEVR_val_questions.json \
@@ -41,6 +46,7 @@ done
 #--output_h5_file dataset/test_questions.h5 \
 #--output_vocab_json dataset/vocab.json
 #
+# FEATURE EXTRACTION FOR ORIGINAL CLEVR DATASET
 ## singularity exec -B /om2:/om2 --nv singularity_path python3 \
 ## ./scripts/extract_features.py \
 ## --input_image_dir dataset/CLEVR_v1.0/images/train \
