@@ -1,4 +1,4 @@
-# How Modular Should Module Neural Networks be for Systematic Generalization
+# How Modular Should Neural Module Networks Be for Systematic Generalization
 
 The code is entirely in Python. The requirements to run the code are at   
 ```` requirements.txt````.
