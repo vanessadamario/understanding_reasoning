@@ -1,0 +1,11 @@
+python3
+numpy
+scipy
+pytorch
+h5py
+tqdm
+matplotlib
+Pillow
+pickle
+json
+pandas
