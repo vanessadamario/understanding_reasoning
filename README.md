@@ -1,9 +1,9 @@
-# Analysis of Neural Module Networks (NMN)
-Code for the analysis of Neural Module Networks (NMN) on VQA task. 
-The repo will be divided in five folders. 
-In all of them, we compare different variants of NMN architectures with different modularity.
+# How Modular Should Module Neural Networks be for Systematic Generalization
 
-All the code is highly inspired by the work of Bahdanau *et al.*
+The code is entirely in Python. The requirements to run the code are at   
+```` requirements.txt````.
+
+This code is highly inspired by the work of Bahdanau *et al.*
 
 "CLOSURE: Assessing Systematic Generalization of CLEVR Models" https://arxiv.org/pdf/1912.05783.pdf, from which we forked the repo https://github.com/rizar/CLOSURE
 
@@ -12,6 +12,10 @@ and
 "SYSTEMATIC GENERALIZATION: WHAT IS REQUIRED AND CAN IT BE LEARNED? https://arxiv.org/pdf/1811.12889.pdf, from with we forked the repo
 https://github.com/rizar/systematic-generalization-sqoop 
 
+
+The repo is divided in several sub-folders.
+In all of them, we compare different variants of NMNs
+with different modularity and further non-modular networks.
 
 **CLOSURE-master**: all the experiments of the CLEVR datasets.
 
@@ -27,19 +31,23 @@ comparison as in experiment 2 (data generation in progress)
 
 **original_library**: SQOOP experiments, from Bahdanau, and two objects per scene case.
 ## Multi-attribute MNIST
-There are several types of NMNs: those can be specified by changing the parameters in the experiments.py files.
+We trained and tested several NMNs: we generate different NMNs by changing 
+the parameters in the experiments.py files.
 We use these architectures across all the experiment_*
 
 ### main.py
-Through the main.py, for each case (experiment_*) we generate data, 
+Through the main.py, for each case (experiment_*) we generate the dataset, 
 we specify the hyper-parameters for the experiments (everything gets saved in a json file, 
 each experiment in the json has its unique identifier), 
 we train those networks and test them. 
-The pipeline is customized to run on a cluster, but it can be easily adapt by changing the 
-the *sh files. You can modify the output_path in the main.py file.
+The pipeline is customized to run on a cluster, but it can be easily adapt by changing the *sh files. You can modify the output_path in the main.py file.
 
 #### Check the path in main.py
 Change output_path
+
+### Dataset generation 
+Data can be generated using the *.sh scripts. The split from MNIST is needed, 
+and can be found at this link https://www.dropbox.com/s/stbwjyj75yx62or/MNIST_splits.zip?dl=0 
 
 ### Generate new experiments
 We go in the experiment_* folder (should better be called case_* folder, among the four) 
