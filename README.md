@@ -173,7 +173,7 @@ An important flag here, in case the experiment did not train for the specified a
 ## SQOOP experiments
 You can either generate the dataset from the code, or download it from here https://www.dropbox.com/s/2jmvt5q1eb66hat/sqoop-no_crowding-variety_1-repeats_30000.zip?dl=0
 
-Run the code using the *.sh scripts (first commands are referred to the cluster and the use of singularity image).
+Run the code using the *.sh scripts in the sqoop-systematic-generalization_2objects folder (first commands are referred to the cluster and the use of singularity image).
 
 ## CLEVR experiments
 Download the data as described here https://github.com/rizar/CLOSURE
