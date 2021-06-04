@@ -1,12 +1,16 @@
 # Analysis of Neural Module Networks (NMN)
 Code for the analysis of Neural Module Networks (NMN) on VQA task. 
-The repo will be divided in five folders. In all of them, we compare different variants of NMN architectures with different modularity.
+The repo will be divided in five folders. 
+In all of them, we compare different variants of NMN architectures with different modularity.
 
-This code is highly inspired by the work of Bahdanau. 
+All the code is highly inspired by the work of Bahdanau \emph{et al.} 
 
+"CLOSURE: Assessing Systematic Generalization of CLEVR Models" https://arxiv.org/pdf/1912.05783.pdf, from which we forked the repo https://github.com/rizar/CLOSURE
+
+and 
+
+"SYSTEMATIC GENERALIZATION: WHAT IS REQUIRED AND CAN IT BE LEARNED? https://arxiv.org/pdf/1811.12889.pdf, from with we forked the repo
 https://github.com/rizar/systematic-generalization-sqoop 
-
-https://github.com/rizar/CLOSURE
 
 
 **CLOSURE**: all the experiments of the CLEVR datasets.
