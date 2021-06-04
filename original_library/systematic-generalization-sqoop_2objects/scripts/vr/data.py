@@ -92,7 +92,8 @@ class ClevrDataset(Dataset):
             self.feature_h5 = h5py.File(self.feature_h5_path, 'r')
             print(self.feature_h5)
             if self.load_features:
-                self.features = self.feature_h5['features'].value
+                # self.features = self.feature_h5['features'].value
+                self.features = self.feature_h5['features'][()]
 
         if self.all_question_families is not None:
             question_family = self.all_question_families[index]
