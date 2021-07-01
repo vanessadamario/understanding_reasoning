@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -N 1
-#SBATCH --a
+#SBATCH --array=1
 #SBATCH -c 1
 #SBATCH --job-name=vecBNCoGenT
 #SBATCH --mem=8GB
@@ -10,15 +10,16 @@
 #SBATCH --partition=normal
 
 
-module add clustername/singularity/3.4.1
+module add openmind/singularity/3.4.1
 hostname
+
 
 echo $CUDA_VISIBLE_DEVICES
 echo $CUDA_DEVICE_ORDER
 
-cd path_to_folder/understanding_reasoning/CLOSURE-master
+cd /om2/user/vanessad/understanding_reasoning/CLOSURE-master
 
-singularity exec -B /om2:/om2 --nv path_to_simg python3 \
+singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.5.0.simg python3 \
 -m scripts.train_model \
 --model_type EE \
 --num_iterations 500000 \
@@ -40,7 +41,7 @@ singularity exec -B /om2:/om2 --nv path_to_simg python3 \
 --classifier_fc_dims=1024 \
 --batch_size 128 \
 --allow_resume True \
---checkpoint_path path_to_folder/understanding_reasoning/CLOSURE-master/results/CoGenT/with_bn/vector_${SLURM_ARRAY_TASK_ID} \
---data_dir path_to_folder/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
+--checkpoint_path /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT/with_bn/vector_${SLURM_ARRAY_TASK_ID} \
+--data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 $@
 

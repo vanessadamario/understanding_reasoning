@@ -5,7 +5,7 @@ import os
 import argparse
 from os.path import join
 from runs import experiments
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+# os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_index', type=int, required=True)
@@ -28,17 +28,18 @@ parser.add_argument('--h5_file', type=bool, required=False, default=False)
 parser.add_argument('--modify_path', type=bool, required=False, default=False)  # AWS experiments
 parser.add_argument('--run', type=str, required=True)
 parser.add_argument('--data_path', type=str, required=False, default=None)
+parser.add_argument('--sqoop_dataset', type=bool, required=False, default=False)
 
 
 FLAGS = parser.parse_args()
 print(FLAGS)
 # where to save and retrieve the experiments
 output_path = {
-    'om2_exp4': '--path to folder /understanding_reasoning/experiment_4',
-    'om2_exp2': '--path to folder /understanding_reasoning/experiment_2'}[FLAGS.host_filesystem]
+    'om2_exp4': '/om2/user/vanessad/understanding_reasoning/experiment_4',
+    'om2_exp2': '/om2/user/vanessad/understanding_reasoning/experiment_2'}[FLAGS.host_filesystem]
 output_path = join(output_path, FLAGS.output_folder + "/")
 print("output path: %s" % output_path)
-PATH_MNIST_SPLIT = "--path to folder /understanding_reasoning/experiment_1/data_generation/MNIST_splits"
+PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_1/data_generation/MNIST_splits"
 os.makedirs(output_path, exist_ok=True)
 print("Load model: ", FLAGS.load_model)
 
@@ -109,11 +110,17 @@ def run_test(id):
         opt.dataset.dataset_id_path = join(FLAGS.root_data_folder, _data_name)
         opt.output_path = join(output_path, 'train_%i' % _train_id)
 
-    # flag_validation has priority on test if both true
-    check_and_test(opt, FLAGS.test_oos, flag_validation=True, test_seen=True)
-    check_and_test(opt, FLAGS.test_oos, flag_validation=True, test_seen=False)
-    check_and_test(opt, FLAGS.test_oos, flag_validation=False, test_seen=True)
-    check_and_test(opt, FLAGS.test_oos, flag_validation=False, test_seen=False)
+    if FLAGS.sqoop_dataset:
+        check_and_test(opt, FLAGS.test_oos,
+                       flag_validation=False,
+                       test_seen=False,
+                       sqoop_dataset=True)
+    else:
+        # flag_validation has priority on test if both true
+        check_and_test(opt, FLAGS.test_oos, flag_validation=True, test_seen=True)
+        check_and_test(opt, FLAGS.test_oos, flag_validation=True, test_seen=False)
+        check_and_test(opt, FLAGS.test_oos, flag_validation=False, test_seen=True)
+        check_and_test(opt, FLAGS.test_oos, flag_validation=False, test_seen=False)
 
 
 def run_train(id):
@@ -135,7 +142,10 @@ def run_train(id):
             print("Experiment has completed!")
             return
     print("Load model at train: ", FLAGS.load_model)
-    check_and_train(opt, output_path, FLAGS.load_model)
+    check_and_train(opt,
+                    output_path,
+                    load=FLAGS.load_model,
+                    sqoop_dataset=FLAGS.sqoop_dataset)
 
 
 def update_json(id):

@@ -11,7 +11,6 @@ from torch.autograd import Variable
 from os.path import join
 import torch.nn.functional as F
 from runs.utils import load_vocab, load_cpu, get_updated_args
-from runs.data_loader import DataTorchLoader
 from runs.train_loop import set_mode, check_accuracy
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -234,12 +233,16 @@ def check_and_test(opt,
                    use_gpu=True,
                    flag_validation=False,
                    test_seen=False,
-                   train=False):
+                   train=False,
+                   sqoop_dataset=False):
     # this must happen in the main.py
 
     # TODO remove comment, this is for testing the load function
     # if not opt.train_completed:
     #     raise ValueError("Experiment %i did not train." % opt.id)
+
+    # if sqoop_dataset:
+    #     split_name =
 
     if test_seen:
         if flag_validation:
@@ -265,7 +268,17 @@ def check_and_test(opt,
         filename = 'train_output.h5'
 
     print("\nSplit name: %s" % split_name)
-    test_loader = DataTorchLoader(opt, split=split_name)
+    if sqoop_dataset:
+        opt_ = {'question_h5': join(opt.dataset.dataset_id_path, 'test_questions.h5'),
+                'feature_h5': join(opt.dataset.dataset_id_path, 'test_features.h5'),
+                'vocab': join(opt.dataset.dataset_id_path, 'vocab.json'),
+                'batch_size': opt.hyper_opt.batch_size}
+        from runs.data_loader_sqoop import ClevrDataLoader
+        test_loader = ClevrDataLoader(**opt_)
+
+    else:
+        from runs.data_loader import DataTorchLoader
+        test_loader = DataTorchLoader(opt, split=split_name)
 
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
     kkwargs_exec_engine_ = opt.hyper_method.__dict__.copy()

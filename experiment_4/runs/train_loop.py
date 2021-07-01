@@ -250,7 +250,7 @@ def train_loop(opt, train_loader, val_loader, load=False, shaping=False, path_sh
 
     while t < max_iterations:  # this is the number of steps in tf
         epoch += 1
-        # print("Iteration: %i " % t)
+        print("Iteration: %i " % t)
         if (epoch > 0) and (opt.hyper_opt.time == 1):
             epoch_time = time.time() - epoch_start_time
             epoch_total_time += epoch_time
@@ -267,6 +267,11 @@ def train_loop(opt, train_loader, val_loader, load=False, shaping=False, path_sh
             sys.stdout.flush()
             t += 1
             (feats, questions, answers) = batch
+            if t == 2:
+                np.save('/om2/user/vanessad/understanding_reasoning/experiment_4/feats_check.npy', feats.detach().cpu().numpy())
+                np.save('/om2/user/vanessad/understanding_reasoning/experiment_4/questions_check.npy', questions.detach().cpu().numpy())
+                np.save('/om2/user/vanessad/understanding_reasoning/experiment_4/answers_check.npy', answers.detach().cpu().numpy())
+
             if isinstance(questions, list):
                 questions = questions[0]
             questions_var = Variable(questions.to(device))
@@ -455,6 +460,13 @@ def train_loop(opt, train_loader, val_loader, load=False, shaping=False, path_sh
                 print("\nTraining time")
                 print(time.time() - init_training)
                 return
+
+            # if t == 50000:
+            #     print('50k iterations!')
+            #     return
+            # if t == 100000:
+            #     print('100k iterations!')
+            #     return
 
             batch_start_time = time.time()
 

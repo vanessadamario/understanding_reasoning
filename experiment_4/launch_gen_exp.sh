@@ -8,12 +8,9 @@
 
 module add openmind/singularity/3.4.1
 
-singularity exec -B /om2:/om2 --nv path_to_singularity/tensorflow2.simg python main.py \
+singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.simg python main.py \
 --host_filesystem om2_exp4 \
 --experiment_index 0 \
---output_folder spatial_only_second_trial \
---root_data_folder /om/user/vanessad/understanding_reasoning/experiment_4/data_generation/datasets \
+--output_folder sqoop_exps_0 \
+--root_data_folder /om2/user/vanessad/understanding_reasoning/experiment_4/data_generation/datasets \
 --run gen_exp
-# --output_folder results_sqoop \
-# --root_data_folder data_generation/sysgen_sqoop \
-# --root_data_folder /om/user/vanessad/understanding_reasoning/experiment_4/data_generation/sysgen_sqoop \

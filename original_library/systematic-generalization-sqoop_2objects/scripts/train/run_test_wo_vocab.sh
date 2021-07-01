@@ -10,6 +10,8 @@
 
 module add clustername/singularity/3.4.1
 
+# h5py version <= 2.10.0 required for these experiments
+
 array_string=("17334841.pt.best" "17334848.pt.best" "17334849.pt.best" "17334842.pt.best" "17334847.pt.best")
 
 for value in ${array_string[*]}

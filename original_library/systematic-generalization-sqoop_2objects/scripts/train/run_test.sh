@@ -9,6 +9,7 @@
 #SBATCH --partition=normal
 
 module add clustername/singularity/3.4.1
+# h5py version <= 2.10.0 required for these experiments
 
 array_string=("17359950_4.pt" "17359951_0.pt" "17359952_1.pt" "17359953_2.pt" "17359954_3.pt")
 

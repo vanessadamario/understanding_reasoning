@@ -10,6 +10,8 @@
 #SBATCH -D /path_to_folder/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/slurm_output
 module add openmind/singularity/3.4.1
 
+# h5py version <= 2.10.0 required for these experiments
+
 singularity exec -B /om:/om --nv path_to_singularity-tensorflow2.simg \
 python /path_to_folder/understanding_reasoning/original_library/systematic-generalization-sqoop_2objects/scripts/train_model.py \
   --model_type SHNMN \

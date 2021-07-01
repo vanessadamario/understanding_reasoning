@@ -1,10 +1,13 @@
 import os
 from os.path import join
 import sys
-from runs.data_loader import DataTorchLoader
 
 
-def check_and_train(opt, output_path, load=False, shaping=False, path_shaping=None):
+def check_and_train(opt,
+                    output_path,
+                    load=False,
+                    sqoop_dataset=False,
+                    shaping=False, path_shaping=None):
     """ Check if the experiments has already been performed.
     If it is not, train otherwise retrieve the path relative to the experiment.
     :param opt: Experiment instance. It contains the output path for the experiment
@@ -12,6 +15,11 @@ def check_and_train(opt, output_path, load=False, shaping=False, path_shaping=No
     :param output_path: the output path for the *.json file. necessary to change the *.json
     :param load: bool, if False, train from scratch, else resume model
     """
+    if sqoop_dataset:
+        from runs.data_loader_sqoop import ClevrDataLoader #  as DataTorchLoader
+    else:
+        from runs.data_loader import DataTorchLoader
+
     print(opt)
     print("END")
     if opt.train_completed:
@@ -34,12 +42,28 @@ def check_and_train(opt, output_path, load=False, shaping=False, path_shaping=No
     # image, question, answer, program
     # and pass them similarly to what ClevrDataset does
     # worst case to pass those to train_loop as in the original implementation
-    train_loader = DataTorchLoader(opt)  # at training
-    for tr_ in train_loader:  # TODO check here
-        print(tr_[0].shape, tr_[1], tr_[2])
-        print(tr_[0].ndimension())
-        break
-    valid_loader = DataTorchLoader(opt, split="valid")
+
+    if sqoop_dataset:
+        opt_ = {'question_h5': join(opt.dataset.dataset_id_path, 'train_questions.h5'),
+                'feature_h5': join(opt.dataset.dataset_id_path, 'train_features.h5'),
+                'vocab': join(opt.dataset.dataset_id_path, 'vocab.json'),
+                'batch_size': opt.hyper_opt.batch_size}
+        train_loader = ClevrDataLoader(**opt_)
+
+        opt_ = {'question_h5': join(opt.dataset.dataset_id_path, 'val_questions.h5'),
+                'feature_h5': join(opt.dataset.dataset_id_path, 'val_features.h5'),
+                'vocab': join(opt.dataset.dataset_id_path, 'vocab.json'),
+                'batch_size': opt.hyper_opt.batch_size}
+        valid_loader = ClevrDataLoader(**opt_)
+
+    else:
+        train_loader = DataTorchLoader(opt)  # at training
+        for tr_ in train_loader:  # TODO check here
+            print(tr_[0].shape, tr_[1], tr_[2])
+            print(tr_[0].ndimension())
+            break
+
+        valid_loader = DataTorchLoader(opt, split="valid")
     # TODO 2: we need to call the train_loop function
 
     from runs.train_loop import train_loop
