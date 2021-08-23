@@ -1,22 +1,22 @@
 #!/bin/bash
 #SBATCH -N 1
-#SBATCH --array=1-2
+#SBATCH --array=0-4
 #SBATCH -c 1
-#SBATCH --job-name=vecSepCLEVR
-#SBATCH --mem=8GB
+#SBATCH --job-name=vec_sep_NPS
+#SBATCH --mem=20GB
 #SBATCH --gres=gpu:1
 #SBATCH --constraint=8GB
-#SBATCH -t 150:00:00
-#SBATCH --partition=normal
+#SBATCH -t 120:00:00
+#SBATCH --partition=use-everything
 
-module add clustername/singularity/3.4.1
+module add openmind/singularity/3.4.1
 hostname
 echo $CUDA_VISIBLE_DEVICES
 echo $CUDA_DEVICE_ORDER
 
-cd path_to_folder/understanding_reasoning/CLOSURE-master
+cd /om2/user/vanessad/understanding_reasoning/CLOSURE-master
 
-singularity exec -B /om2:/om2 --nv path_to_simg python3 \
+singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.5.0.simg python3 \
 -m scripts.train_model \
 --model_type EE \
 --nmn_use_simple_block 0 \
@@ -37,10 +37,11 @@ singularity exec -B /om2:/om2 --nv path_to_simg python3 \
 --module_num_layers=2 \
 --nmn_use_gammas=tanh \
 --classifier_fc_dims=1024 \
---batch_size 128 \
+--batch_size 64 \
 --allow_resume True \
---checkpoint_path path_to_folder/understanding_reasoning/CLOSURE-master/results/CLEVR/vector_sep_stem_${SLURM_ARRAY_TASK_ID} \
---data_dir path_to_folder/understanding_reasoning/CLOSURE-master/dataset/CLEVR_v1.0 \
---separated_stem True
+--checkpoint_path /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT_NeurIPS_revision/vector_sep_stem_${SLURM_ARRAY_TASK_ID} \
+--data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
+--separated_stem True \
+--separation_per_subtask True
 $@_
 

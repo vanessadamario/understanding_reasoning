@@ -102,6 +102,7 @@ parser.add_argument("--seed", default=None)
 
 # specialized_stem
 parser.add_argument('--separated_stem', default=False)
+parser.add_argument('--separation_per_subtask', default=False)
 # implemented on tensor NMN only
 
 # for DDP launcher
@@ -1000,6 +1001,8 @@ def get_execution_engine(args):
             kwargs['condition_method'] = args.condition_method
             kwargs['condition_pattern'] = args.condition_pattern
             kwargs['separated_stem'] = args.separated_stem
+            kwargs['separation_per_subtask'] = args.separation_per_subtask
+
             ee = FiLMedNet(**kwargs)
         elif args.model_type == 'Tfilm':
             kwargs['num_modules'] = args.max_program_module_arity * args.max_program_tree_depth + 1
@@ -1160,6 +1163,7 @@ def get_execution_engine(args):
         else:
             print('WE ARE IN TENSOR NMN')
             kwargs['separated_stem'] = args.separated_stem
+            kwargs['separation_per_subtask'] = args.separation_per_subtask
             kwargs['use_film'] = args.nmn_use_film
             kwargs['use_simple_block'] = args.nmn_use_simple_block
             kwargs['mod_id_loss'] = False

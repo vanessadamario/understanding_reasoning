@@ -37,6 +37,7 @@ parser.add_argument('--architecture_type', type=str, required=False, default=Non
 parser.add_argument('--h5_file', type=bool, required=False, default=False)
 parser.add_argument('--experiment_case', type=int, required=False, default=0)  # query
 parser.add_argument('--exact_activations', type=bool, required=False, default=False)
+parser.add_argument('--module_per_subtask', type=bool, required=False, default=False)
 
 
 FLAGS = parser.parse_args()
@@ -149,7 +150,8 @@ def run_train(id):
             print("Experiment has completed!")
             return
     print("Load model at train: ", FLAGS.load_model)
-    check_and_train(opt, output_path, FLAGS.load_model)
+    check_and_train(opt, output_path, FLAGS.load_model,
+                    FLAGS.module_per_subtask)
 
 
 def update_json(id):

@@ -6,9 +6,10 @@
 #SBATCH -t 00:20:00
 #SBATCH --partition=normal
 
-module add clustername/singularity/3.4.1
+module add openmind/singularity/3.4.1
 
-singularity exec -B /om2:/om2 --nv path_singularity_tensorflow2.simg python main.py \
---host_filesystem om \
+singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.5.0.simg python main.py \
+--host_filesystem om2 \
+--output_path results_NeurIPS_module_per_subtask/ \
 --experiment_index 0 \
 --run gen_exp

@@ -309,11 +309,16 @@ class SHNMN(nn.Module):
         self.separated_module = separated_module
         self.separated_classifier = separated_classifier
         self.modulated_stem = modulated_stem
-        if self.separated_stem:
-            # if the specialization is at the beginning
-            # we will have it in all the architecture
-            self.separated_module = True
-            self.separated_classifier = True
+        # if self.separated_stem:
+        #     # if the specialization is at the beginning
+        #     # we will have it in all the architecture
+        #     self.separated_module = True
+        #     self.separated_classifier = True
+
+        try:
+            self.module_per_subtask = kwargs['module_per_subtask']
+        except:
+            self.module_per_subtask = False
 
         print('modulated stem')
         print(self.modulated_stem)
@@ -326,7 +331,10 @@ class SHNMN(nn.Module):
                 raise ValueError('the architecture is not as we expect')
 
         if self.use_module == "find":
-            self.func_ = map_
+            if self.module_per_subtask:
+                self.func_ = lambda x: x
+            else:
+                self.func_ = map_
         else:
             self.func_ = lambda x: x
         indexes_types = np.array([self.func_(vv_) for vv_ in vocab['question_idx_to_token'].keys()])
@@ -429,7 +437,12 @@ class SHNMN(nn.Module):
         # elif use_module == "find" and self.separated_stem: old version
         elif use_module == "find" and self.separated_module:
             #     self.question_embeddings = nn.ModuleDict # something
-            self.func = nn.ModuleDict({str(k_): FindModule(module_dim, module_kernel_size) for k_ in range(4)})
+            if self.module_per_subtask:
+                self.func = nn.ModuleDict({str(k_): FindModule(module_dim, module_kernel_size)
+                                           for k_ in range(subgroups)})
+            else:
+                self.func = nn.ModuleDict({str(k_): FindModule(module_dim, module_kernel_size)
+                                           for k_ in range(4)})
             self.question_embeddings = nn.Embedding(len(vocab['question_idx_to_token']), module_dim)
             # hard-coded four attributes
 

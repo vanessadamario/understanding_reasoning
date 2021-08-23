@@ -11,6 +11,6 @@ module add openmind/singularity/3.4.1
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.simg python main.py \
 --host_filesystem om2_exp4 \
 --experiment_index 0 \
---output_folder sqoop_exps_0 \
+--output_folder results_NeurIPS_module_per_subtask_trial2 \
 --root_data_folder /om2/user/vanessad/understanding_reasoning/experiment_4/data_generation/datasets \
 --run gen_exp

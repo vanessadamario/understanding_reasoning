@@ -345,15 +345,20 @@ class SHNMN(nn.Module):
         except:
             self.shaping = False
 
-        print('shaping in shnmn', self.shaping)
+        try:
+            self.module_per_subtask = kwargs['module_per_subtask']
+        except:
+            self.module_per_subtask = False
 
+        print('shaping in shnmn', self.shaping)
+        print('find per subtask', self.module_per_subtask)
         # if self.separated_stem:
         #     # if the specialization is at the beginning
         #     # we will have it in all the architecture
         #     self.separated_module = True
         #     self.separated_classifier = True
 
-        sqoop=False
+        sqoop = False
         from runs.data_attribute_random import vocab as vocab_sqoop
         if self.vocab['question_token_to_idx'] == vocab_sqoop:
             from runs.data_attribute_random import map_question_idx_to_attribute_category as map_
@@ -361,27 +366,24 @@ class SHNMN(nn.Module):
         # elif self.vocab['question_token_to_idx'] == vocab_attribute_sqoop['question_token_to_idx']:
         else:
             from runs.data_comparison_relations import map_question_idx_to_group as map_
-        # else:
-        #     raise ValueError('vocab variable does not match')
-        # TODO: old version for the shnmn with multiple attributes
+            # TODO: add find per sub-task
         if self.use_module == "find":
             if sqoop:
                 self.func_ = map_()
             else:
                 vals = vocab['question_token_to_idx'].values()
                 if len(vals) == 25:  # spatial relations only
-                    self.func_ = lambda idx: map_(idx, single_image=True, spatial_only=True)
+                    self.func_ = lambda idx: map_(idx, single_image=True, spatial_only=True,
+                                                  module_per_subtask=self.module_per_subtask)
                 elif len(vals) == 16:
-                    self.func_ = lambda idx: map_(idx, single_image=False, spatial_only=False)
-                    # for k_, v_ in vocab['question_token_to_idx'].items():
-                    #     print(k_, v_)
-                    #     print(self.func_(v_))
-                    #     # FIXME see if it works
-                    # return
+                    self.func_ = lambda idx: map_(idx, single_image=False, spatial_only=False,
+                                                  module_per_subtask=self.module_per_subtask)
                 else:
-                    self.func_ = lambda idx: map_(idx, single_image=True, spatial_only=False)
+                    self.func_ = lambda idx: map_(idx, single_image=True,
+                                                  spatial_only=False,
+                                                  module_per_subtask=self.module_per_subtask)
             tmp = np.array([self.func_(k_) for k_ in self.vocab['question_token_to_idx'].values()])
-            self.subgroups = np.unique(tmp).size # this number if 8 for experiment 2
+            self.subgroups = np.unique(tmp).size  # this number if 8 for experiment 2
         else:
             self.func_ = lambda x: x
             self.subgroups = None

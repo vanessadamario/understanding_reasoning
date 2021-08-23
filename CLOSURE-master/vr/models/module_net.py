@@ -59,7 +59,8 @@ class ModuleNet(nn.Module):
                  discriminator_dropout=None,
                  verbose=True,
                  type_anonymizer=False,
-                 separated_stem=False):
+                 separated_stem=False,
+                 separation_per_subtask=False):
         super(ModuleNet, self).__init__()
 
         if discriminator_proj_dim is None:
@@ -78,12 +79,15 @@ class ModuleNet(nn.Module):
         self.kl_loss = kl_loss
         self.learn_control = learn_control
         self.separated_stem = separated_stem
+        self.separation_per_subtask = separation_per_subtask
+        self.vocab = vocab
 
         if separated_stem:
-            self.dict_subtasks = dict_separated_tasks
-            map_program_idx_to_subtask = torch.Tensor(invert_task_div(dict_separated_tasks))
-            self.map_program_idx_to_subtask = map_program_idx_to_subtask.type(torch.int64)
-            print(self.map_program_idx_to_subtask)
+            if not separation_per_subtask:
+                self.dict_subtasks = dict_separated_tasks
+                map_program_idx_to_subtask = torch.Tensor(invert_task_div(dict_separated_tasks))
+                self.map_program_idx_to_subtask = map_program_idx_to_subtask.type(torch.int64)
+                print(self.map_program_idx_to_subtask)
 
         self.stem = build_stem(feature_dim[0], stem_dim, module_dim,
                                num_layers=stem_num_layers,
@@ -91,7 +95,9 @@ class ModuleNet(nn.Module):
                                kernel_size=stem_kernel_size,
                                padding=stem_padding,
                                with_batchnorm=stem_batchnorm,
-                               separated_stem=separated_stem
+                               separated_stem=separated_stem,
+                               separation_per_subtask=separation_per_subtask,
+                               vocab=vocab
                                )
         print(self.stem)
         tmp = self.stem(Variable(torch.zeros([1, feature_dim[0], feature_dim[1], feature_dim[2]])))
@@ -242,7 +248,10 @@ class ModuleNet(nn.Module):
         # print(self.map_program_idx_to_subtask[program[i, j]])
         if fn_str == 'scene':
             if self.separated_stem:
-                module_inputs = [feats[i:i+1, -1]]
+                if self.separation_per_subtask:
+                    module_inputs = [feats[i:i+1, self.vocab['program_token_to_idx']['scene']]]
+                else:
+                    module_inputs = [feats[i:i+1, -1]]
             else:
                 module_inputs = [feats[i:i+1]]
         else:
@@ -252,7 +261,10 @@ class ModuleNet(nn.Module):
                 module_inputs.append(cur_input)
             if self.use_film:
                 if self.separated_stem:
-                    module_inputs = [feats[i:i+1, self.map_program_idx_to_subtask[program[i, j]]]] + module_inputs
+                    if self.separation_per_subtask:
+                        module_inputs = [feats[i:i+1, program[i, j]]] + module_inputs
+                    else:
+                        module_inputs = [feats[i:i+1, self.map_program_idx_to_subtask[program[i, j]]]] + module_inputs
                 else:
                     module_inputs = [feats[i:i + 1]] + module_inputs
 
@@ -360,9 +372,12 @@ class ModuleNet(nn.Module):
                 # print(control_i)
                 # print(inputs[0].shape)
                 # print(inputs[1].shape)
-
-                cur = self.shared_block(feats[range(batch_size), self.map_program_idx_to_subtask[program[:, i]]],
-                                        control_i, inputs[0], inputs[1])
+                if self.separation_per_subtask:
+                    cur = self.shared_block(feats[range(batch_size), program[:, i]],
+                                            control_i, inputs[0], inputs[1])
+                else:
+                    cur = self.shared_block(feats[range(batch_size), self.map_program_idx_to_subtask[program[:, i]]],
+                                            control_i, inputs[0], inputs[1])
             else:
                 cur = self.shared_block(feats, control_i, inputs[0], inputs[1])
 

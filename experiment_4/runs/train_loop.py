@@ -30,6 +30,7 @@ def get_execution_engine(**kwargs):
     print('shaping flags')
     print(kwargs['shaping'])
     print(kwargs['path_shaping'])
+    print(kwargs['module_per_subtask'])
     if kwargs['load_model']:
         # if we load we do not care about path shaping anymore
         print("Loading model")
@@ -121,7 +122,9 @@ def check_accuracy(opt, execution_engine, loader, test=False):
     return acc
 
 
-def train_loop(opt, train_loader, val_loader, load=False, shaping=False, path_shaping=None):
+def train_loop(opt, train_loader, val_loader, load=False, 
+               shaping=False, path_shaping=None,
+               module_per_subtask=False):
     print("We load the model: ", load)
     init_training = time.time()
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
@@ -139,6 +142,7 @@ def train_loop(opt, train_loader, val_loader, load=False, shaping=False, path_sh
     kkwargs_exec_engine_["load_model"] = load
     kkwargs_exec_engine_["shaping"] = shaping
     kkwargs_exec_engine_["path_shaping"] = path_shaping
+    kkwargs_exec_engine_['module_per_subtask'] = module_per_subtask
     if load:
         kkwargs_exec_engine_["output_path"] = opt.output_path
 

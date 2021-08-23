@@ -35,8 +35,9 @@ def get_execution_engine(**kwargs):
             ee, kwargs = load_execution_engine(join(kwargs['output_path'], 'model'),
                                                model_type="SHNMN")
         else:  # early stopping
-            ee, kwargs = load_execution_engine(join(kwargs['output_path'], 'model.best'),
-                                               model_type="SHNMN")
+            # ee, kwargs = load_execution_engine(join(kwargs['output_path'], 'model.best'),
+            #                                    model_type="SHNMN")
+            ee = SHNMN(**kwargs)
         print(kwargs)
     else:
         # ee = torch.jit.script(SHNMN(**kwargs))
@@ -102,7 +103,8 @@ def check_accuracy(opt, execution_engine, loader, test=False):
     return acc
 
 
-def train_loop(opt, train_loader, val_loader, load=False):
+def train_loop(opt, train_loader, val_loader, load=False,
+               module_per_subtask=False):
 
     init_training = time.time()
     vocab = load_vocab(join(opt.dataset.dataset_id_path, "vocab.json"))
@@ -118,6 +120,7 @@ def train_loop(opt, train_loader, val_loader, load=False):
     kkwargs_exec_engine_ = opt.hyper_method.__dict__
     kkwargs_exec_engine_["vocab"] = vocab
     kkwargs_exec_engine_["load_model"] = load
+    kkwargs_exec_engine_['module_per_subtask'] = module_per_subtask
     if load:
         kkwargs_exec_engine_["output_path"] = opt.output_path
 

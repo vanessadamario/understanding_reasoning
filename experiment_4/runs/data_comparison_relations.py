@@ -144,7 +144,8 @@ def map_question_idx_to_group_all(idx, single_image=True):
 
 def map_question_idx_to_group_spatial_only(idx):
     q_spatial_rel_idx = generate_list(single_image=True,
-                                      spatial_only=True)
+                                      spatial_only=True
+                                      )
     if idx in category_idx:
         return 0
     elif idx in color_idx:
@@ -157,13 +158,20 @@ def map_question_idx_to_group_spatial_only(idx):
         return 4
 
 
-def map_question_idx_to_group(idx, single_image, spatial_only):
+def map_question_idx_to_group(idx, single_image, spatial_only, module_per_subtask=False):
     if (not single_image) and spatial_only:
         raise ValueError('Impossible spatial relation between separated objects.')
     if spatial_only:
-        return map_question_idx_to_group_spatial_only(idx)
+        if module_per_subtask:
+            return idx
+        else:
+            return map_question_idx_to_group_spatial_only(idx)
     else:
-        return map_question_idx_to_group_all(idx, single_image)
+        if module_per_subtask:
+            return idx
+        else:
+            return map_question_idx_to_group_all(idx, single_image)
+    # TODO: find per subtask
 
 
 def invert_dict(d):

@@ -4,18 +4,18 @@ from os.path import join
 
 
 experiment_case_list = [1]  # [1] for VQA and binary answers  # case 2, four VQAs per image
-lr_array = [1e-2, 5e-3, 1e-3, 1e-4, 1e-5]
+lr_array = [1e-3, 1e-4, 1e-5]  # 1e-2, 5e-3,
 method_type_list = ["SHNMN"]
 batch_list = [64]
-dataset_dict = {"dataset_name": ["dataset_0",
-                                 "dataset_1",
-                                 "dataset_2",
-                                 "dataset_3",
-                                 "dataset_4",
-                                 "dataset_5"
+dataset_dict = {"dataset_name": ["dataset_11",
+                                 "dataset_12",
+                                 "dataset_13",
+                                 "dataset_14",
+                                 "dataset_15",
+                                 "dataset_16"
                                 ]
                 }
-dict_method_type = {"use_module": "residual",
+dict_method_type = {"use_module": "find",
                     "model_type": 'soft',
                     "tau_init": "single",
                     "alpha_init": "single",
@@ -65,7 +65,7 @@ class OptimizationHyperParameters(object):
                  checkpoint_every=1000,
                  time=0,
                  num_val_samples=1000,
-                 early_stopping=True,
+                 early_stopping=False,
                  previous_epochs=2,
                  min_epochs=3,
                  max_epochs=500,
@@ -728,6 +728,7 @@ def get_experiment(output_path, id):
     info_path = join(output_path, 'train.json')
     with open(info_path) as infile:
         trained = json.load(infile)
+    print('ID', id)
     opt = trained[str(id)]  # access to the experiment details through the ID
     exp = decode_exp(opt)   # return an Experiment object
 

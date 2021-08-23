@@ -7,7 +7,8 @@ def check_and_train(opt,
                     output_path,
                     load=False,
                     sqoop_dataset=False,
-                    shaping=False, path_shaping=None):
+                    shaping=False, path_shaping=None,
+                    module_per_subtask=False):
     """ Check if the experiments has already been performed.
     If it is not, train otherwise retrieve the path relative to the experiment.
     :param opt: Experiment instance. It contains the output path for the experiment
@@ -66,8 +67,12 @@ def check_and_train(opt,
         valid_loader = DataTorchLoader(opt, split="valid")
     # TODO 2: we need to call the train_loop function
 
+    print(module_per_subtask)
+
     from runs.train_loop import train_loop
-    train_loop(opt, train_loader, valid_loader, load, shaping, path_shaping)
+    train_loop(opt, train_loader, valid_loader, load, 
+               shaping, path_shaping,
+               module_per_subtask)
     # here training must happen
 
     # we write an empty *.txt file with the completed experiment

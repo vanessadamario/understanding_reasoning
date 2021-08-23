@@ -6,7 +6,8 @@ from runs.train_loop import train_loop
 from runs.train_query_loop import train_query_loop
 
 
-def check_and_train(opt, output_path, load):
+def check_and_train(opt, output_path, load,
+                    module_per_subtask=False):
     """ Check if the experiments has already been performed.
     If it is not, train otherwise retrieve the path relative to the experiment.
     :param opt: Experiment instance. It contains the output path for the experiment
@@ -44,7 +45,8 @@ def check_and_train(opt, output_path, load):
         train_query_loop(opt, train_loader, valid_loader, load)
     # elif opt.dataset.experiment_case == 1:
     else:
-        train_loop(opt, train_loader, valid_loader, load)
+        train_loop(opt, train_loader, valid_loader, load,
+                   module_per_subtask=module_per_subtask)
     # here training must happen
     # train_network(opt)
 

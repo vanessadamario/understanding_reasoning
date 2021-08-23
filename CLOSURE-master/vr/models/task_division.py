@@ -38,7 +38,7 @@ dict_separated_tasks = {0: {'count': 4,
                         6: {'intersect': 27,
                             'union': 42},
                         7: {'scene': 41}
-                    }
+                        }
 
 
 def invert_task_div(dict_separated_tasks):
@@ -59,7 +59,6 @@ def invert_task_div(dict_separated_tasks):
 def invert_task_questions(dict_separated_tasks, vocab):
     dct_program_token = {}
     dct_program_idx = {}
-
 
     for k_group, v_group in dict_separated_tasks.items():
         for k_prog, v_prog in v_group.items():

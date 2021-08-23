@@ -8,7 +8,6 @@ from os.path import join
 # from runs import experiments
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_index', type=int, required=True)
 parser.add_argument('--offset_index', type=int, required=False, default=0)
@@ -27,18 +26,19 @@ parser.add_argument('--modify_path', type=bool, required=False, default=False)
 parser.add_argument('--root_data_folder', type=str, required=False, default=None)
 parser.add_argument('--output_path', type=str, required=False, default='results/')
 parser.add_argument('--run', type=str, required=True)
+parser.add_argument('--module_per_subtask', type=bool, required=False, default=False)
 
 
 FLAGS = parser.parse_args()
 # where to save and retrieve the experiments
 output_path = {
-    'om': '--path to folder /understanding_reasoning/experiment_3',
-    'om2': '--path to folder /understanding_reasoning/experiment_3'}[FLAGS.host_filesystem]
+    'om': '/om/user/vanessad/understanding_reasoning/experiment_3',
+    'om2': '/om2/user/vanessad/understanding_reasoning/experiment_3'}[FLAGS.host_filesystem]
 output_path = join(output_path, FLAGS.output_path)
 
 # output_path = join(output_path, 'results/')
 print(output_path)
-PATH_MNIST_SPLIT = "--path to folder /understanding_reasoning/experiment_3/data_generation/MNIST_splits"
+PATH_MNIST_SPLIT = "/om2/user/vanessad/understanding_reasoning/experiment_3/data_generation/MNIST_splits"
 os.makedirs(output_path, exist_ok=True)
 
 def generate_data(id):
@@ -93,14 +93,16 @@ def run_train(id):
     from runs.train import check_and_train
     from runs import experiments
     opt = experiments.get_experiment(output_path, id)  # Experiment instance
-    check_and_train(opt, output_path, FLAGS.load_model)
+    check_and_train(opt, output_path, 
+                    FLAGS.load_model,
+                    module_per_subtask=FLAGS.module_per_subtask)
 
 
 def update_json(id):
     from runs.update import check_update
     """ Write on the json if the experiments are completed,
     by changing the flag. """
-    print(output_path)
+    print('IM HERE')
     check_update(output_path)
 
 
@@ -111,6 +113,13 @@ def store_weights_shaping(id):
     save_weights(opt)
 
 
+def print_(id):
+    from runs.script_print_model import print_ee
+    from runs import experiments
+    print('IM HERE AS WELL')
+    opt = experiments.get_experiment(output_path, id)  # Experiment instance
+    print_ee(opt)
+
 
 switcher = {
     'train': run_train,
@@ -118,7 +127,8 @@ switcher = {
     'gen_exp': generate_experiments,
     'update': update_json,
     'test': run_test,
-    'shaping': store_weights_shaping
+    'shaping': store_weights_shaping,
+    'print': print
 }
 
 switcher[FLAGS.run](FLAGS.experiment_index + FLAGS.offset_index)

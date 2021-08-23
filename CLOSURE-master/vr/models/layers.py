@@ -136,11 +136,18 @@ def build_stem(feature_dim,
                padding=None,
                subsample_layers=None,
                acceptEvenKernel=False,
-               separated_stem=False):
+               separated_stem=False,
+               separation_per_subtask=False,
+               vocab=None):
     if separated_stem:
+        # if separation_per_subtask:
+        # raise ValueError('Im still not there')
+        # else:
         return BuildSpecializedStems(feature_dim, stem_dim, module_dim, num_layers,
                                      with_batchnorm, kernel_size, stride, padding,
-                                     subsample_layers, acceptEvenKernel)
+                                     subsample_layers, acceptEvenKernel,
+                                     separation_per_subtask=separation_per_subtask,
+                                     vocab=vocab)
     else:  # original architecture
         return build_stem_(feature_dim, stem_dim, module_dim, num_layers,
                            with_batchnorm, kernel_size, stride, padding,
@@ -200,7 +207,9 @@ class BuildSpecializedStems(nn.Module):
                  stride=[1],
                  padding=None,
                  subsample_layers=None,
-                 acceptEvenKernel=False):
+                 acceptEvenKernel=False,
+                 separation_per_subtask=False,
+                 vocab=None):
         super(BuildSpecializedStems, self).__init__()
         self.module_dim = module_dim
         self.stem_dim = stem_dim
@@ -208,7 +217,12 @@ class BuildSpecializedStems(nn.Module):
 
         list_subtasks_layers = []
 
-        for subtask_ in sorted(dict_separated_tasks.keys()):
+        keys_stems = sorted(dict_separated_tasks.keys())
+
+        if separation_per_subtask:
+            keys_stems = sorted([i_ for i_ in vocab['program_token_to_idx'].values()])
+
+        for subtask_ in keys_stems:
             if len(kernel_size) == 1:
                 kernel_size = num_layers * kernel_size
             if len(stride) == 1:
@@ -252,7 +266,6 @@ class BuildSpecializedStems(nn.Module):
                 prev_dim = curr_out
             list_subtasks_layers.append(nn.Sequential(*layers))  # we were appending nn.moduleList before
             self.layer_id = layer_id  # all identical across the dict
-
         self.layers = nn.ModuleList(list_subtasks_layers)
 
     def forward(self, img):

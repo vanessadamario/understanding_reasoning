@@ -5,20 +5,27 @@ from os.path import join
 
 # TODO: remember to change the parameters for the dataset : n_training
 experiment_case_list = [1]  # [1] for VQA and binary answers
-lr_array = [1e-4]   # , 1e-2, 5e-3, 1e-3, 1e-5]  # [1e-4, 1e-5]  # 1e-2, 5e-3, 1e-3, 1e-5,
+lr_array = [1e-4, 1e-3, 1e-5]   # , 1e-2, 5e-3, 1e-3, 1e-5]  # [1e-4, 1e-5]  # 1e-2, 5e-3, 1e-3, 1e-5,
 method_type_list = ["SHNMN"]
 batch_list = [64]
-dataset_dict = {"dataset_name": ["sqoop-variety_1-repeats_30000"]
-                                 # ["dataset_24",
-                                 #  "dataset_25",
-                                 #  "dataset_26",
-                                 #  "dataset_27",
-                                 #  "dataset_28",
-                                 #  "dataset_29",
-                                 #  ]
+dataset_dict = {"dataset_name":  # ['dataset_18',
+                                 # 'dataset_19',
+                                 # 'dataset_20',
+                                 # 'dataset_21',
+                                 # 'dataset_22',
+                                 # 'dataset_23'
+                                 # ]
+                                 # ["sqoop-variety_1-repeats_30000"]
+                                 ["dataset_24",
+                                  "dataset_25",
+                                  "dataset_26",
+                                  "dataset_27",
+                                  "dataset_28",
+                                  "dataset_29"
+                                  ]
                 }
 
-dict_method_type = {"use_module": "residual",
+dict_method_type = {"use_module": "find",
                     "model_type": 'soft',
                     "tau_init": "tree",
                     "alpha_init": "correct",
@@ -33,15 +40,15 @@ dict_method_type = {"use_module": "residual",
                     "stem_subsample_layers": [1, 3],  # TODO: changed from []
                     "stem_kernel_size": [3],
                     "stem_padding": None,
-                    "stem_batchnorm": 1,  # TODO: stem_batchnorm changed 0
+                    "stem_batchnorm": 0,  # TODO: stem_batchnorm changed 0
                     "classifier_fc_layers": [1024],
                     "classifier_proj_dim": 512,
-                    "classifier_batchnorm": 1,  # TODO: classifier_batchnorm changed 0
+                    "classifier_batchnorm": 0,  # TODO: classifier_batchnorm changed 0
                     "classifier_downsample": "maxpoolfull",
                     "num_modules": 3,
-                    "separated_stem": 0,
-                    "separated_module": 0,
-                    "separated_classifier": 0
+                    "separated_stem": 1,
+                    "separated_module": 1,
+                    "separated_classifier": 1
                     }
 
 
@@ -57,7 +64,7 @@ class OptimizationHyperParameters(object):
                  lr_at_plateau=True,  # TODO: not implemented in sysgen
                  reduction_factor=None,  # TODO: not implemented in sysgen
                  validation_check=True,  # TODO: not implemented in sysgen
-                 num_iterations=50000,
+                 num_iterations=200000,
                  sensitive_learning_rate=1e-3,
                  reward_decay=0.9,
                  weight_decay=0.,

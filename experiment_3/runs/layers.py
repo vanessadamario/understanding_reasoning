@@ -14,7 +14,6 @@ import torch.nn.functional as F
 from torch.nn.init import kaiming_normal_, kaiming_uniform_
 
 
-
 class SequentialSaveActivations(nn.Sequential):
 
     def forward(self, input_):

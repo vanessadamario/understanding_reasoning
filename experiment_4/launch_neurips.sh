@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH -N 1
-#SBATCH --array=6
-#SBATCH --job-name=sqoop_3
+#SBATCH --array=2-5,9-10
+#SBATCH --job-name=groupall4
 #SBATCH --mem=3GB
 #SBATCH --constraint=8GB
 #SBATCH -x node022,node023,node026,node021,node028,node094,node093
 #SBATCH --gres=gpu:1
-#SBATCH -t 80:00:00
-#SBATCH --partition=use-everything
+#SBATCH -t 30:00:00
+#SBATCH --partition=normal
 #SBATCH -D /om2/user/vanessad/understanding_reasoning/experiment_4/slurm_output
 
 module add openmind/singularity/3.4.1
@@ -21,8 +21,7 @@ singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.
 --host_filesystem om2_exp4 \
 --offset_index 0 \
 --load_model True \
---output_folder sqoop_exps_3 \
---sqoop_dataset True \
+--output_folder results_NeurIPS_revision \
 --experiment_index ${SLURM_ARRAY_TASK_ID} \
 --run train
 

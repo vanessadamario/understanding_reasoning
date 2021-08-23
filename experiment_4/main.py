@@ -5,7 +5,7 @@ import os
 import argparse
 from os.path import join
 from runs import experiments
-# os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_index', type=int, required=True)
@@ -29,6 +29,7 @@ parser.add_argument('--modify_path', type=bool, required=False, default=False)  
 parser.add_argument('--run', type=str, required=True)
 parser.add_argument('--data_path', type=str, required=False, default=None)
 parser.add_argument('--sqoop_dataset', type=bool, required=False, default=False)
+parser.add_argument('--module_per_subtask', type=bool, required=False, default=False)
 
 
 FLAGS = parser.parse_args()
@@ -117,9 +118,9 @@ def run_test(id):
                        sqoop_dataset=True)
     else:
         # flag_validation has priority on test if both true
-        check_and_test(opt, FLAGS.test_oos, flag_validation=True, test_seen=True)
-        check_and_test(opt, FLAGS.test_oos, flag_validation=True, test_seen=False)
-        check_and_test(opt, FLAGS.test_oos, flag_validation=False, test_seen=True)
+        # check_and_test(opt, FLAGS.test_oos, flag_validation=True, test_seen=True)
+        # check_and_test(opt, FLAGS.test_oos, flag_validation=True, test_seen=False)
+        # check_and_test(opt, FLAGS.test_oos, flag_validation=False, test_seen=True)
         check_and_test(opt, FLAGS.test_oos, flag_validation=False, test_seen=False)
 
 
@@ -145,7 +146,8 @@ def run_train(id):
     check_and_train(opt,
                     output_path,
                     load=FLAGS.load_model,
-                    sqoop_dataset=FLAGS.sqoop_dataset)
+                    sqoop_dataset=FLAGS.sqoop_dataset,
+                    module_per_subtask=FLAGS.module_per_subtask)
 
 
 def update_json(id):

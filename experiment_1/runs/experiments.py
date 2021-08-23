@@ -4,25 +4,21 @@ from os.path import join
 
 
 experiment_case_list = [1]  # [1] for VQA and binary answers  # case 2, four VQAs per image
-lr_array = [1e-2, 5e-3, 1e-3, 1e-5, 1e-4]  # [1e-2, 5e-3, 1e-3, 1e-4]
+lr_array = [1e-3, 1e-5, 1e-4]    # [1e-2, 5e-3,# [1e-2, 5e-3, 1e-3, 1e-4]
 method_type_list = ["SHNMN"]
 batch_list = [64]  # [256, 128] trial 1 and 2
-dataset_dict = {"dataset_name": ['dataset_31',
-                                 'dataset_32',
-                                 'dataset_33',
-                                 # 'dataset_15',
-                                 # 'dataset_26',
-                                 # 'dataset_16',
-                                 # 'dataset_27',
-                                 # 'dataset_20',
-                                 # 'dataset_14',
-                                 # 'dataset_21',  #
-                                 # 'dataset_25',  #
-                                 # 'dataset_17',  #
-                                 # 'dataset_22'
+dataset_dict = {"dataset_name": [# 'dataset_31',
+                                 # 'dataset_32',
+                                 # 'dataset_33',
+                                 'dataset_20',
+                                 'dataset_14',
+                                 'dataset_21',  #
+                                 'dataset_25',
+                                 'dataset_22',
+                                 'dataset_23'
                                  ]
                 }
-dict_method_type = {"use_module": "residual",
+dict_method_type = {"use_module": "find",
                     "model_type": 'soft',
                     "tau_init": "single",
                     "alpha_init": "single",
@@ -44,9 +40,9 @@ dict_method_type = {"use_module": "residual",
                     "classifier_downsample": "maxpoolfull",
                     "num_modules": 1,
                     "modulated_stem": False,
-                    "separated_stem": False,
-                    "separated_module": False,
-                    "separated_classifier": False
+                    "separated_stem": True,
+                    "separated_module": True,
+                    "separated_classifier": True
                     }
 
 
@@ -62,7 +58,7 @@ class OptimizationHyperParameters(object):
                  lr_at_plateau=True,  # TODO: not implemented in sysgen
                  reduction_factor=None,  # TODO: not implemented in sysgen
                  validation_check=True,
-                 num_iterations=500000,  # 200000
+                 num_iterations=200000,  # 200000
                  sensitive_learning_rate=1e-3,
                  reward_decay=0.9,
                  weight_decay=0.,
@@ -491,7 +487,7 @@ class Dataset(object):
                  dataset_id_path="",
                  experiment_case=1,
                  image_size=28,
-                 n_training=2100000,
+                 n_training=210000,
                  policy=None):
         """
         :param dataset_id: str, identifier of the dataset used
