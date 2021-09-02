@@ -18,8 +18,8 @@ singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.
 --output_path results_NeurIPS_revision_trial2 \
 --offset_index 0 \
 --experiment_index ${SLURM_ARRAY_TASK_ID} \
---load_model True \
 --run train
+
 # --load_model True \
 # --module_per_subtask True \ this is true for the find per subtask only
 # #SBATCH --constraint=any-gpu
