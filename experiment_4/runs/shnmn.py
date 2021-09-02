@@ -17,6 +17,7 @@ from torch.nn.init import kaiming_normal, kaiming_uniform, xavier_uniform, xavie
 from functools import partial
 # for one object we do not need to have tau and alpha as tensors
 # of the original shape
+from runs.data_comparison_relations import dict_orig_sqoop_dataset
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -308,7 +309,8 @@ class SHNMN(nn.Module):
         stem_batchnorm,
         classifier_fc_layers,
         classifier_proj_dim,
-        classifier_downsample,classifier_batchnorm,
+        classifier_downsample,
+        classifier_batchnorm,
         num_modules,
         hard_code_alpha=False,
         hard_code_tau=False,
@@ -360,6 +362,11 @@ class SHNMN(nn.Module):
 
         sqoop = False
         from runs.data_attribute_random import vocab as vocab_sqoop
+        # print(vocab_sqoop)
+        print('\n\n')
+        print(self.vocab['question_token_to_idx'])
+        print('\n\n')
+
         if self.vocab['question_token_to_idx'] == vocab_sqoop:
             from runs.data_attribute_random import map_question_idx_to_attribute_category as map_
             sqoop = True
@@ -368,8 +375,9 @@ class SHNMN(nn.Module):
             from runs.data_comparison_relations import map_question_idx_to_group as map_
             # TODO: add find per sub-task
         if self.use_module == "find":
-            if sqoop:
-                self.func_ = map_()
+            if sqoop:  # 10 categories and 4 relations
+                self.func_ = lambda x: x
+                self.subgroups = None
             else:
                 vals = vocab['question_token_to_idx'].values()
                 if len(vals) == 25:  # spatial relations only
@@ -378,12 +386,16 @@ class SHNMN(nn.Module):
                 elif len(vals) == 16:
                     self.func_ = lambda idx: map_(idx, single_image=False, spatial_only=False,
                                                   module_per_subtask=self.module_per_subtask)
+                elif len(vals) == len(dict_orig_sqoop_dataset):
+                    self.func_ = None  # we do not consider modular IE
+                    self.subgroups = None
                 else:
                     self.func_ = lambda idx: map_(idx, single_image=True,
                                                   spatial_only=False,
                                                   module_per_subtask=self.module_per_subtask)
-            tmp = np.array([self.func_(k_) for k_ in self.vocab['question_token_to_idx'].values()])
-            self.subgroups = np.unique(tmp).size  # this number if 8 for experiment 2
+                if len(vals) != len(dict_orig_sqoop_dataset):
+                    tmp = np.array([self.func_(k_) for k_ in self.vocab['question_token_to_idx'].values()])
+                    self.subgroups = np.unique(tmp).size  # this number if 8 for experiment 2
         else:
             self.func_ = lambda x: x
             self.subgroups = None
@@ -931,8 +943,13 @@ class SHNMN(nn.Module):
         if self.separated_classifier:
             if self.num_modules == 1:
                 if self.use_module == 'find':
-                    classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_])
+                    if not self.separated_module:
+                        classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_].unsqueeze(0))
+                                                       for i_, qv_ in enumerate(question_copy)])
+                    else:
+                        classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_])
                                                    for i_, qv_ in enumerate(question_copy)])
+
                 elif self.use_module == 'residual':
                     classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_].unsqueeze(0))
                                                    for i_, qv_ in enumerate(question_copy)])

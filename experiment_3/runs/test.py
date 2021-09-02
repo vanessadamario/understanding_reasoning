@@ -271,8 +271,8 @@ def check_and_test(opt, flag_out_of_sample, use_gpu=True, flag_validation=False,
     # this must happen in the main.py
 
     # TODO remove comment, this is for testing the load function
-    if not opt.train_completed:
-        raise ValueError("Experiment %i did not train." % opt.id)
+    # if not opt.train_completed:
+    #     raise ValueError("Experiment %i did not train." % opt.id)
 
     if test_seen:
         if flag_validation:

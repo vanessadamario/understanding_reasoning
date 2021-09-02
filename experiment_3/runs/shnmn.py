@@ -649,8 +649,12 @@ class SHNMN(nn.Module):
         # if self.separated_stem:  # TODO if self.separated_classifier
         if self.separated_classifier:
             if self.use_module == "find":
-                classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_])
-                                               for i_, qv_ in enumerate(question_copy)])
+                if not self.separated_module:
+                    classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_].unsqueeze(0))
+                                                   for i_, qv_ in enumerate(question_copy)])
+                else:
+                    classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_])
+                                                   for i_, qv_ in enumerate(question_copy)])
             else:  # residual option
                 # print(h_final[0].unsqueeze(0).shape)
                 classifier_output = torch.cat([self.classifier[str(self.func_(int(qv_)))](h_final[i_].unsqueeze(0))

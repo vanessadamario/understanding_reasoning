@@ -39,9 +39,9 @@ singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.
 --classifier_fc_dims=1024 \
 --batch_size 64 \
 --allow_resume True \
---checkpoint_path /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT_NeurIPS_revision/vector_sep_stem_${SLURM_ARRAY_TASK_ID} \
 --data_dir /om2/user/vanessad/understanding_reasoning/CLOSURE-master/dataset_visual_bias \
 --separated_stem True \
---separation_per_subtask True
+--separation_per_subtask True \
+--checkpoint_path /om2/user/vanessad/understanding_reasoning/CLOSURE-master/results/CoGenT_NeurIPS_revision/vector_sep_stem_${SLURM_ARRAY_TASK_ID} \
 $@_
 

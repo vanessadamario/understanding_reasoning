@@ -331,11 +331,11 @@ def train_loop(opt, train_loader, val_loader, load=False,
             if t % record_loss == 0:
                 running_loss += loss.item()
                 num_recordloss += 1
-                print(t)
-                print('Time for 10 iterations')
-                print(time.time() - batch_start_time)
+                # print(t)
+                # print('Time for 10 iterations')
+                # print(time.time() - batch_start_time)
                 batch_start_time = time.time()
-                print("\n\nNth CHECKPOINT LOSS: %i" % num_recordloss)
+                # print("\n\nNth CHECKPOINT LOSS: %i" % num_recordloss)
                 avg_loss = running_loss / opt.hyper_opt.record_loss_every
                 logger.info("{} {:.5f} {:.5f} {:.5f}".format(t,
                                                              time.time() - batch_start_time, time.time() - compute_start_time,

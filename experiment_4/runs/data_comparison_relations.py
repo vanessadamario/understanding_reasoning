@@ -55,6 +55,15 @@ size_idx = [k_ for k_ in range(18, 21)]
 # q_brightness_idx = [k_ for k_ in range(29, 33)]
 # q_spatial_rel_idx = [k_ for k_ in range(33, 37)]
 
+dict_orig_sqoop_dataset = {'B': 8, 'P': 22, 'F': 12, 'there': 4, '<END>': 2,
+                           '3': 35, 'C': 9, 'V': 28, 'M': 19, 'G': 13, 'N': 20,
+                           '2': 34, '9': 41, '1': 33, 'green': 6, 'Y': 31, 'A': 7,
+                           'W': 29, '8': 40, 'Z': 32, 'J': 16, 'T': 26, 'D': 10,
+                           'right_of': 44, '7': 39, 'H': 14, '<START>': 1, 'X': 30,
+                           'I': 15, '4': 36, 'L': 18, '6': 38, '0': 42, 'a': 5, 'U': 27,
+                           'K': 17, 'is': 3, 'below': 46, 'Q': 23, 'E': 11, 'above': 45,
+                           'S': 25, 'R': 24, '5': 37, 'O': 21, 'left_of': 43, '<NULL>': 0}
+
 
 def generate_vocab(single_image=False, spatial_only=False):
     """ Experiment type.

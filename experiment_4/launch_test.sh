@@ -2,7 +2,7 @@
 #SBATCH -N 1
 #SBATCH -c 1
 #SBATCH --job-name=test_NPS
-#SBATCH --array=0-10
+#SBATCH --array=11-12
 #SBATCH --mem=30GB
 #SBATCH -t 01:30:00
 #SBATCH --gres=gpu:1

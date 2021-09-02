@@ -5,7 +5,7 @@ from os.path import join
 
 # TODO: remember to change the parameters for the dataset : n_training
 experiment_case_list = [1]  # [1] for VQA and binary answers
-lr_array = [1e-4, 1e-3, 1e-5]   # , 1e-2, 5e-3, 1e-3, 1e-5]  # [1e-4, 1e-5]  # 1e-2, 5e-3, 1e-3, 1e-5,
+lr_array = [1e-4, 1e-3, 1e-5]  # , 1e-2, 5e-3, 1e-3, 1e-5]  # [1e-4, 1e-5]  # 1e-2, 5e-3, 1e-3, 1e-5,
 method_type_list = ["SHNMN"]
 batch_list = [64]
 dataset_dict = {"dataset_name":  # ['dataset_18',
@@ -15,24 +15,31 @@ dataset_dict = {"dataset_name":  # ['dataset_18',
                                  # 'dataset_22',
                                  # 'dataset_23'
                                  # ]
-                                 # ["sqoop-variety_1-repeats_30000"]
-                                 ["dataset_24",
-                                  "dataset_25",
-                                  "dataset_26",
-                                  "dataset_27",
-                                  "dataset_28",
-                                  "dataset_29"
-                                  ]
+                                ['dataset_0',
+                                 'dataset_1',
+                                 'dataset_2',
+                                 'dataset_3',
+                                 'dataset_4',
+                                 'dataset_5']
+                                 # ["sqoop-variety_1-repeats_30000",
+                                 #  'sqoop-no_crowding-variety_1-repeats_30000']
+                                 # ["dataset_24",
+                                 #  "dataset_25",
+                                 #  "dataset_26",
+                                 #  "dataset_27",
+                                 #  "dataset_28",
+                                 #  "dataset_29"
+                                 #  ]
                 }
 
-dict_method_type = {"use_module": "find",
+dict_method_type = {"use_module": "residual",
                     "model_type": 'soft',
                     "tau_init": "tree",
                     "alpha_init": "correct",
                     "model_bernoulli": 0.5,
                     "hard_code_alpha": True,
                     "hard_code_tau": True,
-                    "feature_dim": [3, 64, 64],  # TODO: input dimensions
+                    "feature_dim": [3, 28, 28],  # TODO: input dimensions
                     "module_dim": 64,
                     "module_kernel_size": 3,
                     "stem_dim": 64,
@@ -46,8 +53,8 @@ dict_method_type = {"use_module": "find",
                     "classifier_batchnorm": 0,  # TODO: classifier_batchnorm changed 0
                     "classifier_downsample": "maxpoolfull",
                     "num_modules": 3,
-                    "separated_stem": 1,
-                    "separated_module": 1,
+                    "separated_stem": 0,
+                    "separated_module": 0,
                     "separated_classifier": 1
                     }
 

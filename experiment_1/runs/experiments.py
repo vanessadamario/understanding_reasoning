@@ -18,7 +18,7 @@ dataset_dict = {"dataset_name": [# 'dataset_31',
                                  'dataset_23'
                                  ]
                 }
-dict_method_type = {"use_module": "find",
+dict_method_type = {"use_module": "residual",
                     "model_type": 'soft',
                     "tau_init": "single",
                     "alpha_init": "single",
@@ -40,8 +40,8 @@ dict_method_type = {"use_module": "find",
                     "classifier_downsample": "maxpoolfull",
                     "num_modules": 1,
                     "modulated_stem": False,
-                    "separated_stem": True,
-                    "separated_module": True,
+                    "separated_stem": False,
+                    "separated_module": False,
                     "separated_classifier": True
                     }
 
