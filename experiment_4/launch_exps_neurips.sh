@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH --array=18-53
-#SBATCH --job-name=NPS_exp4_1
+#SBATCH --job-name=exp4_rev1
 #SBATCH --mem=40GB
 #SBATCH --constraint=8GB
 #SBATCH -x node020,node023,node026,node021,node028,node094,node093,node098,node097,node094,dgx001
 #SBATCH --gres=gpu:1
 #SBATCH -t 24:00:00
-#SBATCH --partition=normal
+#SBATCH --partition=use-everything
 #SBATCH -D /om2/user/vanessad/understanding_reasoning/experiment_4
 
 module add openmind/singularity/3.4.1
@@ -20,8 +20,9 @@ singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.
 /om2/user/vanessad/understanding_reasoning/experiment_4/main.py \
 --host_filesystem om2_exp4 \
 --offset_index 0 \
---output_folder results_NeurIPS_revision_trial2 \
+--output_folder results_NeurIPS_revision \
 --experiment_index ${SLURM_ARRAY_TASK_ID} \
+--load_model True \
 --run train
 
 # --load_model True \

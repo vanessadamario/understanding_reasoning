@@ -7,12 +7,12 @@ experiment_case_list = [1]  # [1] for VQA and binary answers  # case 2, four VQA
 lr_array = [1e-3, 1e-4, 1e-5]  # 1e-2, 5e-3,
 method_type_list = ["SHNMN"]
 batch_list = [64]
-dataset_dict = {"dataset_name": ["dataset_11",
-                                 "dataset_12",
-                                 "dataset_13",
-                                 "dataset_14",
-                                 "dataset_15",
-                                 "dataset_16"
+dataset_dict = {"dataset_name": ["dataset_0",
+                                 "dataset_1",
+                                 "dataset_2",
+                                 "dataset_3",
+                                 "dataset_4",
+                                 "dataset_5"
                                 ]
                 }
 dict_method_type = {"use_module": "residual",

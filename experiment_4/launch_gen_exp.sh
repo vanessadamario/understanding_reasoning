@@ -9,7 +9,7 @@
 module add openmind/singularity/3.4.1
 
 singularity exec -B /om2:/om2 --nv /om/user/xboix/singularity/xboix-tensorflow2.simg python main.py \
---host_filesystem om2_exp2 \
+--host_filesystem om2_exp4 \
 --experiment_index 0 \
 --output_folder results_NeurIPS_revision \
 --run gen_exp

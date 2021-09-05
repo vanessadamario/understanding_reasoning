@@ -10,12 +10,18 @@ batch_list = [64]  # [256, 128] trial 1 and 2
 dataset_dict = {"dataset_name": [# 'dataset_31',
                                  # 'dataset_32',
                                  # 'dataset_33',
-                                 'dataset_20',
-                                 'dataset_14',
-                                 'dataset_21',  #
-                                 'dataset_25',
-                                 'dataset_22',
-                                 'dataset_23'
+                                 # 'dataset_20',
+                                 # 'dataset_14',
+                                 # 'dataset_21',  #
+                                 # 'dataset_25',
+                                 # 'dataset_22',
+                                 # 'dataset_23'
+                                 'dataset_15',
+                                 'dataset_26',
+                                 'dataset_16',
+                                 'dataset_27',
+                                 'dataset_17',
+                                 'dataset_18'
                                  ]
                 }
 dict_method_type = {"use_module": "residual",
