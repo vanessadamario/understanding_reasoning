@@ -58,183 +58,187 @@ The output of this operation is a folder : results, containing a train.json file
 (In case of experiment_2 you need to create a new folder, as all the code for dataset generation and training is in experiment_4)
 Before this call, we need to specify the architecture hyper-parameters and the datasets, in experiments.py (dict_method_type dictionary) 
 
-#### Parameters to change in _dict_method_type_ (experiments.py)
+#### Parameters to change in `dict_method_type` (`experiments.py`)
 In the following   
 **architecture_name**  
- _parameters to change_ in the variable _dict_method_type_
+ _parameters to change_ in the variable `dict_method_type`
 The **architecture_name** does not appear anywhere in the code, but helps as a reference.
 The other keys in this dictionary do not change across **experiment**, we specify only those that must be modified.
 
 **all - all - all**  
 ```
-_dict_method_type_ = {"use_module": "find",  
-                         "feature_dim": # input dimensions (depend on the dataset),  
-                              "stem_batchnorm": 0,  
-                              "classifier_batchnorm": 0,  
-                              "separated_stem": False,   
-                              "separated_module": False,  
-                              "separated_classifier": False  
-                             }
+dict_method_type = {"use_module": "find",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,  
+                      "separated_stem": False,   
+                      "separated_module": False,  
+                      "separated_classifier": False  
+                     }
 ```
                              
 **all - group - group** 
 ```
-_dict_method_type_ = {"use_module": "find",  
-                                             "feature_dim": # input dimensions (depend on the dataset),  
-                                             "stem_batchnorm": 0,  
-                                             "classifier_batchnorm": 0,  
-                                             "separated_stem": False,  
-                                             "separated_module": True,  
-                                             "separated_classifier": True  
-                                            }
+dict_method_type = {"use_module": "find",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,  
+                      "separated_stem": False,  
+                      "separated_module": True,  
+                      "separated_classifier": True  
+                     }
 ```
                                                                          
 **group - group - group**  
 ```
-_dict_method_type_ = {"use_module": "find",  
-                                        "feature_dim": # input dimensions (depend on the dataset),  
-                                        "stem_batchnorm": 0,  
-                                        "classifier_batchnorm": 0,   
-                                        "separated_stem": True,  
-                                        "separated_module": True,  
-                                        "separated_classifier": True  
-                                        }  
+dict_method_type = {"use_module": "find",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,   
+                      "separated_stem": True,  
+                      "separated_module": True,  
+                      "separated_classifier": True  
+                      }  
 ```
 
 **sub-task - sub-task - sub-task**   
 ```
-_dict_method_type_ = {"use_module": "residual",  
-"feature_dim": # input dimensions (depends on the dataset),    
-"stem_batchnorm": 0,  
-"classifier_batchnorm": 0,  
-"separated_stem": True,  
-"separated_module": True,  
-"separated_classifier": True  
-}
+dict_method_type = {"use_module": "residual",  
+                      "feature_dim": # input dimensions (depends on the dataset),    
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,  
+                      "separated_stem": True,  
+                      "separated_module": True,  
+                      "separated_classifier": True  
+                     }
 ```
 
 **all - sub-task - all**   
 ```
-_dict_method_type_ = {"use_module": "residual",  
-                                  "feature_dim": # input dimensions (depend on the dataset),  
-                                  "stem_batchnorm": 0,  
-                                  "classifier_batchnorm": 0,  
-                                  "separated_stem": False,  
-                                  "separated_module": False,  
-                                  "separated_classifier": False  
-                                 }  
+dict_method_type = {"use_module": "residual",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,  
+                      "separated_stem": False,  
+                      "separated_module": False,  
+                      "separated_classifier": False 
+                      }  
 ```
 
 **all(bn) - all - all(bn)**  
 ```
-_dict_method_type_ = {"use_module": "find",  
-"feature_dim": # input dimensions (depend on the dataset),  
-"stem_batchnorm": 1,  
-"classifier_batchnorm": 1,  
-"separated_stem": False,   
-"separated_module": False,  
-"separated_classifier": False  
-}
+dict_method_type = {"use_module": "find",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 1,  
+                      "classifier_batchnorm": 1,  
+                      "separated_stem": False,   
+                      "separated_module": False,  
+                      "separated_classifier": False  
+                      }
 ```
 
 
 **all(bn) - sub-task - all(bn)**   
 ```
-_dict_method_type_ = {"use_module": "residual",  
-"feature_dim": # input dimensions (depend on the dataset),  
-"stem_batchnorm": 1,  
-"classifier_batchnorm": 1,  
-"separated_stem": False,  
-"separated_module": False,  
-"separated_classifier": False  
-}
+dict_method_type = {"use_module": "residual",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 1,  
+                      "classifier_batchnorm": 1,  
+                      "separated_stem": False,  
+                      "separated_module": False,  
+                      "separated_classifier": False  
+                      }
 ```
 
 **all - sub-task/group - all**
 ```
-_dict_method_type_ = {"use_module": "mixed",  
-"feature_dim": # input dimensions (depend on the dataset),  
-"stem_batchnorm": 0,  
-"classifier_batchnorm": 0,  
-"separated_stem": False,  
-"separated_module": True,  
-"separated_classifier": False  
-}
+dict_method_type = {"use_module": "mixed",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,  
+                      "separated_stem": False,  
+                      "separated_module": True,  
+                      "separated_classifier": False  
+                      }
 ```
 
 **sub-task - sub-task/group - all**
 ```
-_dict_method_type_ = {"use_module": "mixed",  
-"feature_dim": # input dimensions (depend on the dataset),  
-"stem_batchnorm": 0,  
-"classifier_batchnorm": 0,  
-"separated_stem": True,  
-"separated_module": True,  
-"separated_classifier": False  
-}
+dict_method_type = {"use_module": "mixed",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,  
+                      "separated_stem": True,  
+                      "separated_module": True,  
+                      "separated_classifier": False  
+                      }
 ```
 
 **group - all - all**
 ```
-_dict_method_type_ = {"use_module": "find",  
-"feature_dim": # input dimensions (depend on the dataset),  
-"stem_batchnorm": 0,  
-"classifier_batchnorm": 0,  
-"separated_stem": True,  
-"separated_module": False,  
-"separated_classifier": False }
+dict_method_type = {"use_module": "find",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,  
+                      "separated_stem": True,  
+                      "separated_module": False,  
+                      "separated_classifier": False 
+                      }
 ```
 
 **sub-task - all - all**  
 optional flag in `module_per_subtask=True`
 ```
-_dict_method_type_ = {"use_module": "find",  
-"feature_dim": # input dimensions (depend on the dataset),  
-"stem_batchnorm": 0,  
-"classifier_batchnorm": 0,  
-"separated_stem": True,  
-"separated_module": False,  
-"separated_classifier": False  
+dict_method_type = {"use_module": "find",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,  
+                      "separated_stem": True,  
+                      "separated_module": False,  
+                      "separated_classifier": False 
+                      } 
 ```
 
 **all - all - group**  
 ```
-_dict_method_type_ = {"use_module": "find",  
-"feature_dim": # input dimensions (depend on the dataset),  
-"stem_batchnorm": 0,  
-"classifier_batchnorm": 0,  
-"separated_stem": False,  
-"separated_module": False,  
-"separated_classifier": True  
+dict_method_type = {"use_module": "find",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,  
+                      "separated_stem": False,  
+                      "separated_module": False,  
+                      "separated_classifier": True  
+                      }
 ```
 
-**all - all - sub-task**  
+**all - all - sub-task**    
 optional flag in `module_per_subtask=True`
 ```
-_dict_method_type_ = {"use_module": "find",  
-"feature_dim": # input dimensions (depend on the dataset),  
-"stem_batchnorm": 0,  
-"classifier_batchnorm": 0,  
-"separated_stem": False,  
-"separated_module": False,  
-"separated_classifier": True  
+dict_method_type = {"use_module": "find",  
+                      "feature_dim": # input dimensions (depend on the dataset),  
+                      "stem_batchnorm": 0,  
+                      "classifier_batchnorm": 0,  
+                      "separated_stem": False,  
+                      "separated_module": False,  
+                      "separated_classifier": True  
+                      }
 ```
 
 `feature_dim = [3, 28, 28]` if experiment_1 and experiment_2 
 `feature_dim = [3, 64, 64]` if experiment_3 and experiment_4
 
 #### Parameters to change in experiments.py
-In _experiments.py_ there are some further variables which are important for the experiment generation phase.  
+In `experiments.py` there are some further variables which are important for the experiment generation phase.  
 
-_experiment_case_list_, typically set to `[1]`, this variable can be `[0]` in case we want to generate a multi-task problem, or `[2]`, in the case of an enlarged VQA task    
-_lr_array_, list of learning rates, typical values `[5e-3, 1e-3, 1e-4]`, or `[1e-1, 1e-2, 5e-3, 1e-3, 1e-4, 1e-5]`    
-_batch_list_, list of batch sizes, `64`, `128`, `256`, `512` are typical values, depending on the size of the dataset    
-_dataset_dict_, dictionary containing the dataset name, e.g.,   
+`experiment_case_list`, typically set to `[1]`, this variable can be `[0]` in case we want to generate a multi-task problem, or `[2]`, in the case of an enlarged VQA task    
+`lr_array`, list of learning rates, typical values `[5e-3, 1e-3, 1e-4]`, or `[1e-1, 1e-2, 5e-3, 1e-3, 1e-4, 1e-5]`    
+`batch_list`, list of batch sizes, `64`, `128`, `256`, `512` are typical values, depending on the size of the dataset    
+`dataset_dict`, dictionary containing the dataset name, e.g.,   
 ```dataset_dict = {"dataset_name": ["dataset_15",  
                                  "dataset_16",  
                                  "dataset_17",  
                                  "dataset_18",  
-                                 "dataset_19"}  
+                                 "dataset_19"]}  
 ```
 
 ### Run experiments 
@@ -251,7 +255,7 @@ Run the code using the *.sh scripts in the sqoop-systematic-generalization_2obje
 ## CLEVR experiments
 Download the data as described here https://github.com/rizar/CLOSURE
 
-Read and use the _launch_features_extraction.sh
+Read and use the `launch_features_extraction.sh`
 
 Run the code using the *.sh scripts (first commands are referred to the cluster and the use of singularity image)
 
