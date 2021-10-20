@@ -66,6 +66,7 @@ The **architecture_name** does not appear anywhere in the code, but helps as a r
 The other keys in this dictionary do not change across **experiment**, we specify only those that must be modified.
 
 **all - all - all**  
+```
 _dict_method_type_ = {"use_module": "find",  
                          "feature_dim": # input dimensions (depend on the dataset),  
                               "stem_batchnorm": 0,  
@@ -74,9 +75,10 @@ _dict_method_type_ = {"use_module": "find",
                               "separated_module": False,  
                               "separated_classifier": False  
                              }
-
+```
                              
-**all - group - group**  
+**all - group - group** 
+```
 _dict_method_type_ = {"use_module": "find",  
                                              "feature_dim": # input dimensions (depend on the dataset),  
                                              "stem_batchnorm": 0,  
@@ -84,9 +86,11 @@ _dict_method_type_ = {"use_module": "find",
                                              "separated_stem": False,  
                                              "separated_module": True,  
                                              "separated_classifier": True  
-                                            }  
+                                            }
+```
                                                                          
 **group - group - group**  
+```
 _dict_method_type_ = {"use_module": "find",  
                                         "feature_dim": # input dimensions (depend on the dataset),  
                                         "stem_batchnorm": 0,  
@@ -95,8 +99,10 @@ _dict_method_type_ = {"use_module": "find",
                                         "separated_module": True,  
                                         "separated_classifier": True  
                                         }  
+```
 
 **sub-task - sub-task - sub-task**   
+```
 _dict_method_type_ = {"use_module": "residual",  
 "feature_dim": # input dimensions (depends on the dataset),    
 "stem_batchnorm": 0,  
@@ -105,8 +111,10 @@ _dict_method_type_ = {"use_module": "residual",
 "separated_module": True,  
 "separated_classifier": True  
 }
+```
 
 **all - sub-task - all**   
+```
 _dict_method_type_ = {"use_module": "residual",  
                                   "feature_dim": # input dimensions (depend on the dataset),  
                                   "stem_batchnorm": 0,  
@@ -115,8 +123,10 @@ _dict_method_type_ = {"use_module": "residual",
                                   "separated_module": False,  
                                   "separated_classifier": False  
                                  }  
+```
 
 **all(bn) - all - all(bn)**  
+```
 _dict_method_type_ = {"use_module": "find",  
 "feature_dim": # input dimensions (depend on the dataset),  
 "stem_batchnorm": 1,  
@@ -125,8 +135,11 @@ _dict_method_type_ = {"use_module": "find",
 "separated_module": False,  
 "separated_classifier": False  
 }
+```
+
 
 **all(bn) - sub-task - all(bn)**   
+```
 _dict_method_type_ = {"use_module": "residual",  
 "feature_dim": # input dimensions (depend on the dataset),  
 "stem_batchnorm": 1,  
@@ -135,8 +148,10 @@ _dict_method_type_ = {"use_module": "residual",
 "separated_module": False,  
 "separated_classifier": False  
 }
+```
 
 **all - sub-task/group - all**
+```
 _dict_method_type_ = {"use_module": "mixed",  
 "feature_dim": # input dimensions (depend on the dataset),  
 "stem_batchnorm": 0,  
@@ -145,8 +160,10 @@ _dict_method_type_ = {"use_module": "mixed",
 "separated_module": True,  
 "separated_classifier": False  
 }
+```
 
 **sub-task - sub-task/group - all**
+```
 _dict_method_type_ = {"use_module": "mixed",  
 "feature_dim": # input dimensions (depend on the dataset),  
 "stem_batchnorm": 0,  
@@ -155,27 +172,75 @@ _dict_method_type_ = {"use_module": "mixed",
 "separated_module": True,  
 "separated_classifier": False  
 }
+```
 
-"feature_dim" = [3, 28, 28] if experiment_1 and experiment_2 
-"feature_dim" = [3, 64, 64] if experiment_3 and experiment_4
+**group - all - all**
+```
+_dict_method_type_ = {"use_module": "find",  
+"feature_dim": # input dimensions (depend on the dataset),  
+"stem_batchnorm": 0,  
+"classifier_batchnorm": 0,  
+"separated_stem": True,  
+"separated_module": False,  
+"separated_classifier": False }
+```
+
+**sub-task - all - all**  
+optional flag in `module_per_subtask=True`
+```
+_dict_method_type_ = {"use_module": "find",  
+"feature_dim": # input dimensions (depend on the dataset),  
+"stem_batchnorm": 0,  
+"classifier_batchnorm": 0,  
+"separated_stem": True,  
+"separated_module": False,  
+"separated_classifier": False  
+```
+
+**all - all - group**  
+```
+_dict_method_type_ = {"use_module": "find",  
+"feature_dim": # input dimensions (depend on the dataset),  
+"stem_batchnorm": 0,  
+"classifier_batchnorm": 0,  
+"separated_stem": False,  
+"separated_module": False,  
+"separated_classifier": True  
+```
+
+**all - all - sub-task**  
+optional flag in `module_per_subtask=True`
+```
+_dict_method_type_ = {"use_module": "find",  
+"feature_dim": # input dimensions (depend on the dataset),  
+"stem_batchnorm": 0,  
+"classifier_batchnorm": 0,  
+"separated_stem": False,  
+"separated_module": False,  
+"separated_classifier": True  
+```
+
+`feature_dim = [3, 28, 28]` if experiment_1 and experiment_2 
+`feature_dim = [3, 64, 64]` if experiment_3 and experiment_4
 
 #### Parameters to change in experiments.py
 In _experiments.py_ there are some further variables which are important for the experiment generation phase.  
 
-_experiment_case_list_, typically set to [1], this variable can be [0] in case we want to generate a multi-task problem, or [2], in the case of an enlarged VQA task    
-_lr_array_, list of learning rates, typical values [5e-3, 1e-3, 1e-4], or [1e-1, 1e-2, 5e-3, 1e-3, 1e-4, 1e-5]    
-_batch_list_, list of batch sizes, 64, 128, 256, 512 are typical values, depending on the size of the dataset    
+_experiment_case_list_, typically set to `[1]`, this variable can be `[0]` in case we want to generate a multi-task problem, or `[2]`, in the case of an enlarged VQA task    
+_lr_array_, list of learning rates, typical values `[5e-3, 1e-3, 1e-4]`, or `[1e-1, 1e-2, 5e-3, 1e-3, 1e-4, 1e-5]`    
+_batch_list_, list of batch sizes, `64`, `128`, `256`, `512` are typical values, depending on the size of the dataset    
 _dataset_dict_, dictionary containing the dataset name, e.g.,   
-dataset_dict = {"dataset_name": ["dataset_15",  
+```dataset_dict = {"dataset_name": ["dataset_15",  
                                  "dataset_16",  
                                  "dataset_17",  
                                  "dataset_18",  
                                  "dataset_19"}  
-       
+```
+
 ### Run experiments 
-python main.py --host-filesystem _**_ --experiment_index _experiment_id_ --run _train_ 
+`python main.py --host-filesystem _**_ --experiment_index _experiment_id_ --run train `
 An important flag here, in case the experiment did not train for the specified amount of iterations, is    
---load_model (bool), if False, we train from scratch. Otherwise, we load the model at last iteration ./results/train_(experiment_id)/model, as we start the training from there.
+`load_model (bool)`, if False, we train from scratch. Otherwise, we load the model at last iteration ./results/train_(experiment_id)/model, as we start the training from there.
 
 
 ## SQOOP experiments
