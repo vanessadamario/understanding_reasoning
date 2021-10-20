@@ -30,7 +30,7 @@ E.g., question: _Is 6 the same color of 7?_ (data generation in progress). (All 
 comparison as in experiment 2 (data generation in progress)
 
 **original_library**: SQOOP experiments, from Bahdanau, and two objects per scene case.
-## Multi-attribute MNIST
+## VQA-MNIST
 We trained and tested several NMNs: we generate different NMNs by changing 
 the parameters in the experiments.py files.
 We use these architectures across all the experiment_*
@@ -47,7 +47,7 @@ Change output_path
 
 ### Dataset generation 
 Data can be generated using the *.sh scripts. The split from MNIST is needed, 
-and can be found at this link https://www.dropbox.com/s/stbwjyj75yx62or/MNIST_splits.zip?dl=0 
+and can be found at this link https://www.dropbox.com/s/y4v5vmxqfqi42nz/MNIST_splits.zip?dl=0
 
 ### Generate new experiments
 We go in the experiment_* folder (should better be called case_* folder, among the four) 
@@ -179,7 +179,7 @@ An important flag here, in case the experiment did not train for the specified a
 
 
 ## SQOOP experiments
-You can either generate the dataset from the code, or download it from here https://www.dropbox.com/s/2jmvt5q1eb66hat/sqoop-no_crowding-variety_1-repeats_30000.zip?dl=0
+You can either generate the dataset from the code, or download it from here https://www.dropbox.com/s/vfwaun1pyikeovq/sqoop-no_crowding-variety_1-repeats_30000.zip?dl=0
 
 Run the code using the *.sh scripts in the sqoop-systematic-generalization_2objects folder (first commands are referred to the cluster and the use of singularity image).
 
