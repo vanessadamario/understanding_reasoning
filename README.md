@@ -46,8 +46,8 @@ The pipeline is customized to run on a cluster, but it can be easily adapt by ch
 Change output_path
 
 ### Dataset generation 
-Data can be generated using the *.sh scripts. The split from MNIST is needed, 
-and can be found at this link https://www.dropbox.com/s/y4v5vmxqfqi42nz/MNIST_splits.zip?dl=0
+Data can be generated using the *.sh scripts. The split from MNIST is needed,
+look at the reproducibility section. 
 
 ### Generate new experiments
 We go in the experiment_* folder (should better be called case_* folder, among the four) 
@@ -248,7 +248,6 @@ An important flag here, in case the experiment did not train for the specified a
 
 
 ## SQOOP experiments
-You can either generate the dataset from the code, or download it from here https://www.dropbox.com/s/vfwaun1pyikeovq/sqoop-no_crowding-variety_1-repeats_30000.zip?dl=0
 
 Run the code using the *.sh scripts in the sqoop-systematic-generalization_2objects folder (first commands are referred to the cluster and the use of singularity image).
 
@@ -258,6 +257,21 @@ Download the data as described here https://github.com/rizar/CLOSURE
 Read and use the `launch_features_extraction.sh`
 
 Run the code using the *.sh scripts (first commands are referred to the cluster and the use of singularity image)
+
+
+## Reproducibility
+
+Datasets and models trained on the CLEVR-CoGenT and CLEVR datasets are available at this link https://doi.org/10.7910/DVN/Z0RZ0K
+
+In particular:
+
+`sqoop-no_crowding-variety_1-repeat_30000` contains the SQOOP dataset with two objects per image 
+
+`MNIST_splits` contains MNIST splits for VQA-MNIST generation 
+
+`CoGenT_*` contain five repetition for * model trained on CoGenT Condition A and the test output over Condition A and Condition B  
+
+`CLEVR_CLOSURE_VectorNMN_ours` contains the five repetition of our Vector-NMN with modular image encoder and a subfolder with the performance on the CLOSURE dataset
 
 
 
