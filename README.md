@@ -1,5 +1,8 @@
 # How Modular Should Neural Module Networks Be for Systematic Generalization
 
+This repository contains the original code used in the following paper:
+Vanessa D’Amario, Tomotake Sasaki, and Xavier Boix. [How Modular Should Neural Module Networks Be for Systematic Generalization?](https://proceedings.neurips.cc/paper/2021/hash/c467978aaae44a0e8054e174bc0da4bb-Abstract.html) In Advances in Neural Information Processing Systems 34 (NeurIPS 2021), 2021. 
+
 The code is entirely in Python. The requirements to run the code are at   
 ```` requirements.txt````.
 
